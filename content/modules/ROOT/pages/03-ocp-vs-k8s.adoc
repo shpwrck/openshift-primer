@@ -1,0 +1,8 @@
+= OpenShift vs Kubernetes
+
+[#projects]
+[#routes]
+[#console]
+[#ovn]
+[#security]
+[#exercises]

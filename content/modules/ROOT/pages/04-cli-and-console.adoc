@@ -1,0 +1,6 @@
+= CLI and Web Console
+
+[#locatingresources]
+[#buildingresources]
+[#contextsandclusters]
+[#exercises]

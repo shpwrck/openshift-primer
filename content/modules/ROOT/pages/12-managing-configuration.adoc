@@ -1,0 +1,6 @@
+= Managing Configuration
+
+[#configmaps]
+[#secrets]
+[#automation]
+[#exercises]
