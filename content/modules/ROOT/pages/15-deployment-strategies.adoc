@@ -1,5 +1,10 @@
 = Deployment Strategies
 
 [#workloadtypes]
+== Workload Types
+
 [#healthchecks]
+== Health Checks
+
 [#exercises]
+== Exercises

@@ -1,7 +1,16 @@
 = Architecture
 
 [#infrastructure]
+== Infrastructure
+
 [#kubernetescomponents]
+== Kubernetes Components
+
 [#openshiftcomponents]
+== OpenShift Components
+
 [#furtherreading]
+== Further Reading
+
 [#exercises]
+== Exercises

@@ -1,6 +1,13 @@
 = Application Deployment
 
 [#containerbasics]
+== Container Basics
+
 [#helm]
+== Helm
+
 [#builds]
+== Builds
+
 [#exercises]
+== Exercises

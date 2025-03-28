@@ -1,7 +1,16 @@
 = OpenShift Networking
 
 [#networkpath]
+== Network Path
+
 [#pathbasedrouting]
+== Path Based Routing
+
 [#security]
+== Security
+
 [#configuration]
+== Configuration
+
 [#exercises]
+==Exercises

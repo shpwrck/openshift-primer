@@ -1,7 +1,16 @@
 = Scaling Applications
 
 [#metrics]
+== Metrics
+
 [#resourcelimitsrequests]
+== Resource Limits and Resource Requests
+
 [#horizontalpodautoscaler]
+== Horizontal Pod Autoscalers
+
 [#customhpas]
+== Custom Metrics for Horizontal Pod Autoscalers
+
 [#exercises]
+== Exercises

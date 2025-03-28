@@ -1,6 +1,13 @@
 = Managing Configuration
 
 [#configmaps]
+== Configmaps
+
 [#secrets]
+== Secrets
+
 [#automation]
+== Automation
+
 [#exercises]
+== Exercises

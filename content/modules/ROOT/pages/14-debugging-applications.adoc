@@ -1,8 +1,19 @@
 = Debugging Applications
 
 [#debugprocess]
+== Debug Process
+
 [#debugpod]
+== Debug Pod
+
 [#debugnetwork]
+== Debug Network
+
 [#debugstorage]
+== Debug Storage
+
 [#debugenvironment]
+== Debug Environment
+
 [#exercises]
+== Exercises

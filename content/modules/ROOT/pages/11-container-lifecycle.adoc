@@ -1,8 +1,19 @@
 = Container Lifecycle
 
 [#imagepolicy]
+== Image Policy
+
 [#externalregistries]
+== External Registries
+
 [#imagestreams]
+== Image Streams
+
 [#tagsanddigests]
+== Tags and Digests
+
 [#process]
+== Process
+
 [#exercises]
+== Exercises
