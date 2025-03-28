@@ -1,1 +1,52 @@
 = {lab_name}
+
+== Welcome
+
+Welcome to the OpenShift Application Development Workshop!
+
+Over the next two days, we’ll dive deep into building, deploying, and managing applications on OpenShift. Whether you're new to OpenShift or looking to sharpen your skills, this workshop will provide hands-on experience and practical knowledge that you can apply right away.
+
+=== Workshop Goals
+1. Understand the fundamentals of OpenShift and its core components.
+2. Learn how to develop, containerize, and deploy applications efficiently.
+3. Explore best practices for application scaling.
+4. Gain hands-on experience with troubleshooting and maintaining applications in an OpenShift environment.
+
+=== Workshop Environment
+
+To facilitate hands-on learning, this workshop provides the following tools:
+
+* A Terminal for CLI Testing:: Direct access to the OpenShift command-line interface (CLI) for efficient management and control of your applications.
+* A Web Console for Visual Interaction:: A user-friendly graphical interface to explore OpenShift projects, resources, and configurations.
+* An Integrated Development Environment (IDE):: A code development environment preconfigured to streamline your application coding and deployment.
+
+These tools ensure a smooth and flexible experience, allowing you to interact with OpenShift both visually and through the command line while coding directly within the environment.
+
+=== Agenda
+
+.Day 1
+* Introduction
+* Architecture
+* OpenShift vs Kubernetes
+* CLI and Web Console
+* Projects
+* Application Deployment
+* OpenShift Networking
+
+.Day 2
+* Container Lifecycle
+* Managing Configuration
+* Scaling Applications
+* Debugging Applications
+* Deployment Strategies
+* Observabiliity
+
+=== Who Should Attend
+
+This workshop is designed for developers, DevOps engineers, and IT professionals who are either getting started with OpenShift or looking to enhance their application development skills on the platform.
+
+=== Conclusion
+
+By the end of the workshop, you’ll walk away with a solid foundation in OpenShift application development and practical skills to accelerate your projects.
+
+Let’s get started!
