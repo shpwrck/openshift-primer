@@ -6,6 +6,8 @@
 [#kubernetescomponents]
 == Kubernetes Components
 
+image::components-of-kubernetes.svg
+
 [#openshiftcomponents]
 == OpenShift Components
 
