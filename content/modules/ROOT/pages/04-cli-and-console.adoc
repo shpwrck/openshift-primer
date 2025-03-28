@@ -12,7 +12,7 @@
 [#exercises]
 == Exercises
 
-[source,console]
+[source,sh,role=execute]
 ----
 oc config
 ----
