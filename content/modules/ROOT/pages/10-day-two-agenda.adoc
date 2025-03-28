@@ -8,3 +8,19 @@
 * xref:16-observability.adoc[Observability]
 
 xref:00-day-one-agenda.adoc[Jump to Day One]
+
+== Outcomes
+
+By the end of Day Two, participants will have expanded their operational understanding of OpenShift and gained experience with advanced platform capabilities. The following learning outcomes are expected:
+
+* **Manage Image Artifacts Inside and Outside of a Cluster**:: Learn how to work with container images using internal OpenShift image registries as well as external registries, and understand how image policies impact builds and deployments.
+
+* **Configure Applications with Secrets and ConfigMaps**:: Use Kubernetes-native resources to securely manage application configuration, environment variables, and sensitive data without hardcoding values.
+
+* **Scale Applications with Horizontal Pod Autoscalers**:: Configure and observe autoscaling behavior based on CPU utilization or custom metrics to meet changing demand automatically.
+
+* **Debug Applications with Built-In Tools**:: Leverage OpenShift’s built-in debugging capabilities—such as remote shell access, live container inspection, and diagnostic events—to troubleshoot issues effectively.
+
+* **Understand the Different Workload Options for Applications**:: Distinguish between Deployments, DaemonSets, StatefulSets, Jobs, and CronJobs, and know when to use each based on workload behavior and lifecycle needs.
+
+* **Track Metrics and Logging of User Workloads**:: Explore observability tools available in OpenShift to view pod-level logs, inspect metrics, and monitor application health using the built-in dashboard and command-line utilities.

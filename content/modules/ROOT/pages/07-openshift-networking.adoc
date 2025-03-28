@@ -13,4 +13,19 @@
 == Configuration
 
 [#exercises]
-==Exercises
+== Exercises
+
+.Exercise 1
+[%collapsible]
+====
+====
+
+.Exercise 2
+[%collapsible]
+====
+====
+
+.Exercise 2
+[%collapsible]
+====
+====
