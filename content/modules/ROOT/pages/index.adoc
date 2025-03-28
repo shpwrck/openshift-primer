@@ -25,21 +25,34 @@ These tools ensure a smooth and flexible experience, allowing you to interact wi
 === Agenda
 
 .Day 1
-* Introduction
-* Architecture
-* OpenShift vs Kubernetes
-* CLI and Web Console
-* Projects
-* Application Deployment
-* OpenShift Networking
+* Background: +
+Why you might use OpenShift for application development.
+* Architecture: +
+Components used to run OpenShift
+* OpenShift vs Kubernetes: +
+How OpenShift and Kubernetes differ. 
+* CLI and Web Console: +
+OpenShift's most common interfaces.
+* Projects: +
+OpenShift's workspace resource.
+* Application Deployment: +
+How to create an application image from source code and package it for OpenShift 
+* OpenShift Networking: +
+Configuration options for exposing application traffic.
 
 .Day 2
-* Container Lifecycle
-* Managing Configuration
-* Scaling Applications
-* Debugging Applications
-* Deployment Strategies
-* Observabiliity
+* Container Lifecycle: +
+Handling the image artifact in and out of the OpenShift cluster
+* Managing Configuration: +
+Parameterizing applications with dynamic information
+* Scaling Applications: +
+Leveraging OpenShift's robust scaling capabilities
+* Debugging Applications: +
+Common workflows for identifying failure scenarios and fixes
+* Deployment Strategies: +
+Workloads beyond basic deployments
+* Observabiliity: +
+Monitoring your application metrics and logs with OpenShift
 
 === Who Should Attend
 

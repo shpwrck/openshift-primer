@@ -1,5 +1,5 @@
 * xref:00-day-one-agenda.adoc[Day One Agenda]
-** xref:01-introduction.adoc[Introduction]
+** xref:01-background.adoc[Background]
 ** xref:02-architecture.adoc[Architecture]
 *** xref:02-architecture.adoc#infrastructure[Infrastructure]
 *** xref:02-architecture.adoc#kubernetescomponents[Kubernetes Components]

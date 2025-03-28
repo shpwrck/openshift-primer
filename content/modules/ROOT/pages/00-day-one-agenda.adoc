@@ -1,6 +1,6 @@
 = Day One Agenda
 
-* xref:01-introduction.adoc[Introduction]
+* xref:01-background.adoc[Background]
 * xref:02-architecture.adoc[Architecture]
 * xref:03-ocp-vs-k8s.adoc[OpenShift vs Kubernetes]
 * xref:04-cli-and-console.adoc[CLI and Web Console]
