@@ -12,7 +12,7 @@ xref:10-day-two-agenda.adoc[Jump to Day Two]
 
 == Outcomes
 
-By the end of Day One, participants will be equipped with foundational knowledge and hands-on experience working with OpenShift. The following learning outcomes are expected:
+By the end of day one, participants will be equipped with foundational knowledge and hands-on experience working with OpenShift. The following learning outcomes are expected:
 
 * **Understand the Components that Comprise OpenShift**:: Gain insight into the architecture of OpenShift, including its control plane, worker nodes, developer tools, and platform services.
 

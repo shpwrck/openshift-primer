@@ -11,7 +11,7 @@ xref:00-day-one-agenda.adoc[Jump to Day One]
 
 == Outcomes
 
-By the end of Day Two, participants will have expanded their operational understanding of OpenShift and gained experience with advanced platform capabilities. The following learning outcomes are expected:
+By the end of day two, participants will have expanded their operational understanding of OpenShift and gained experience with advanced platform capabilities. The following learning outcomes are expected:
 
 * **Manage Image Artifacts Inside and Outside of a Cluster**:: Learn how to work with container images using internal OpenShift image registries as well as external registries, and understand how image policies impact builds and deployments.
 

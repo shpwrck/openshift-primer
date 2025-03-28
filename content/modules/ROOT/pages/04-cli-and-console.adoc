@@ -12,6 +12,11 @@
 [#exercises]
 == Exercises
 
+[source,bash]
+----
+oc config
+----
+
 .Exercise 1
 [%collapsible]
 ====
