@@ -1,3 +1,5 @@
+= Day One Agenda
+
 * xref:01-introduction.adoc[Introduction]
 * xref:02-architecture.adoc[Architecture]
 * xref:03-ocp-vs-k8s.adoc[OpenShift vs Kubernetes]
@@ -5,3 +7,5 @@
 * xref:05-projects[Projects]
 * xref:06-application-deployment.adoc[Application Deployment]
 * xref:07-openshift-networking.adoc[Networking]
+
+xref:10-day-two-agenda.adoc[Jump to Day Two]
