@@ -19,6 +19,7 @@ content:
   image: ghcr.io/rhpds/showroom-content:prod
   imagePullPolicy: IfNotPresent
   repoUrl: https://github.com/shpwrck/workshop-example.git 
+  #repoUrl: https://github.com/rhpds/showroom_template_default.git
   repoRef: main
   antoraPlaybook: default-site.yml
   resources:
