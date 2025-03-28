@@ -2,6 +2,6 @@
 ** xref:module-01.adoc#SubsectionOne[Subsection One]
 ** xref:module-01.adoc#SubsectionTwo[Subsection Two]
 
-* xref:module-02.adoc[2. Module Two
+* xref:module-02.adoc[2. Module Two]
 ** xref:module-02.adoc#SubsectionOne[Subsection One]
 ** xref:module-02.adoc#SubsectionTwo[Subsection Two]
