@@ -9,6 +9,18 @@
 [#builds]
 == Builds
 
+[.console-input]
+[source,bash,role="execute"]
+----
+echo "execute"
+----
+
+[.console-input]
+[source,bash,role="copypaste"]
+----
+echo "copypaste"
+----
+
 .cart-build.yaml
 [%collapsible]
 ====
