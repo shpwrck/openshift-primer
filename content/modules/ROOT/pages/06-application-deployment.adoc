@@ -9,10 +9,14 @@
 [#builds]
 == Builds
 
+.cart-build.yaml
+[%collapsible]
+====
 [,yaml]
 ----
 include::example$cart-build.yaml[]
 ----
+====
 
 [#exercises]
 == Exercises
