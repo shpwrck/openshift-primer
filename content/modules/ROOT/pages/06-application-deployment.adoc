@@ -9,26 +9,51 @@
 [#builds]
 == Builds
 
-[.console-input]
-[source,bash,role="execute"]
-----
-echo "execute"
-----
-
-[.console-input]
-[source,bash,role="copypaste"]
-----
-echo "copypaste"
-----
-
 .cart-build.yaml
 [%collapsible]
 ====
-[source,yaml,role=execute]
+[source,yaml,role="copypaste"]
 ----
 include::example$cart-build.yaml[]
 ----
 ====
+
+.catalog-build.yaml
+[%collapsible]
+====
+[source,yaml,role="copypaste"]
+----
+include::example$catalog-build.yaml[]
+----
+====
+
+.checkout-build.yaml
+[%collapsible]
+====
+[source,yaml,role="copypaste"]
+----
+include::example$checkout-build.yaml[]
+----
+====
+
+.orders-build.yaml
+[%collapsible]
+====
+[source,yaml,role="copypaste"]
+----
+include::example$orders-build.yaml[]
+----
+====
+
+.ui-build.yaml
+[%collapsible]
+====
+[source,yaml,role="copypaste"]
+----
+include::example$ui-build.yaml[]
+----
+====
+
 
 [#exercises]
 == Exercises
