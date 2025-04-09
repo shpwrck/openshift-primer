@@ -12,7 +12,7 @@
 .cart-build.yaml
 [%collapsible]
 ====
-[,yaml]
+[source,yaml]
 ----
 include::example$cart-build.yaml[]
 ----
