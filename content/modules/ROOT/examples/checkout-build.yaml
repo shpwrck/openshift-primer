@@ -1,0 +1,23 @@
+---
+apiVersion: shipwright.io/v1beta1
+kind: Build
+metadata:
+  name: retail-checkout
+  namespace: default
+spec:
+  env: []
+  output:
+    image: >-
+      image-registry.openshift-image-registry.svc:5000/default/retail-checkout:latest
+    pushSecret: pipeline-dockercfg-5xnsp
+  paramValues: []
+  source:
+    contextDir: /src/checkout
+    git:
+      url: 'https://github.com/shpwrck/retail-store-sample-app.git'
+    type: Git
+  strategy:
+    kind: ClusterBuildStrategy
+    name: buildah
+  volumes: []
+...

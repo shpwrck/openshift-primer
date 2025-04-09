@@ -10,16 +10,13 @@ deployer:
 
 proxy:
   image: quay.io/rhpds/nginx:1.25
-  #  image: docker.io/library/nginx:1.25
   imagePullPolicy: IfNotPresent
 
 content:
-  # Only create a content pane, no other tabs will be available
   contentOnly: "false"
   image: ghcr.io/rhpds/showroom-content:prod
   imagePullPolicy: IfNotPresent
   repoUrl: https://github.com/shpwrck/workshop-example.git 
-  #repoUrl: https://github.com/rhpds/showroom_template_default.git
   repoRef: main
   antoraPlaybook: default-site.yml
   resources:
@@ -37,9 +34,9 @@ content:
 stacked_terminals:
   setup: "false"
   name: stacked-terminal
-  display_name: "Stacked Terminal"
+  display_name: "Terminal / Console"
   top: "terminal"
-  bottom: "wetty"
+  bottom: "ocpconsole"
 
 second_terminal_tab:
   setup: "false"
@@ -89,7 +86,7 @@ wetty:
 
 # To be fully implemented
 codeserver:
-  setup: "true"
+  setup: "false"
   image: quay.io/rhpds/code-server:latest
   resources:
     limits:

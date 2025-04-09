@@ -9,6 +9,11 @@
 [#builds]
 == Builds
 
+[,yaml]
+----
+include::example$cart-build.yaml
+----
+
 [#exercises]
 == Exercises
 
