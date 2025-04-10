@@ -6,14 +6,14 @@ OpenShift and Kubernetes provide a powerful platform for building, deploying, an
 
 === Developer Benefits
 
-* **Simplified Deployment**:: With built-in tools like Source-to-Image (S2I) and support for alternative build tools such as Project Kaniko, OpenShift allows developers to quickly and securely build container images directly from source code—even in environments without a Docker daemon.
-* **Consistent Environments**:: Kubernetes ensures that applications run the same way across development, testing, and production environments.
-* **Parameterized Environments**:: ConfigMaps and Secrets allow developers to externalize environment-specific configurations—such as database URLs, feature flags, or credentials—without changing application code, enabling easier reuse and better separation of concerns.
-* **Self-Service Access**:: Developers can create, deploy, and manage applications independently through OpenShift’s CLI, web console, and developer-friendly APIs.
-* **Built-in CI/CD Support**:: OpenShift Pipelines (based on Tekton) help automate build, test, and deploy workflows directly within the platform.
-* **Scalability**:: Kubernetes’ orchestration engine automatically handles load balancing and scaling, allowing applications to grow with demand.
-* **Integrated Monitoring and Logging**:: Developers get visibility into application performance and logs through OpenShift’s built-in tools, making debugging and optimization easier.
-* **Security and Policy Management**:: OpenShift enforces security best practices by default, including role-based access control (RBAC), image scanning, and secure defaults.
+* **Simplified Deployment**: With built-in tools like Source-to-Image (S2I) and support for alternative build tools such as Project Shipwright, OpenShift allows developers to quickly and securely build container images directly from source code—even in environments without a Docker daemon.
+* **Consistent Environments**: Kubernetes ensures that applications run the same way across development, testing, and production environments.
+* **Parameterized Environments**: ConfigMaps and Secrets allow developers to externalize environment-specific configurations—such as database URLs, feature flags, or credentials—without changing application code, enabling easier reuse and better separation of concerns.
+* **Self-Service Access**: Developers can create, deploy, and manage applications independently through OpenShift’s CLI, web console, and developer-friendly APIs.
+* **Built-in CI/CD Support**: OpenShift Pipelines (based on Tekton) help automate build, test, and deploy workflows directly within the platform.
+* **Scalability**: Kubernetes’ orchestration engine automatically handles load balancing and scaling, allowing applications to grow with demand.
+* **Integrated Monitoring and Logging**: Developers get visibility into application performance and logs through OpenShift’s built-in tools, making debugging and optimization easier.
+* **Security and Policy Management**: OpenShift enforces security best practices by default, including role-based access control (RBAC), policy, and secure default settings.
 
 === Why It Matters
 

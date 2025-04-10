@@ -1,7 +1,7 @@
 = Day One Agenda
 
 * xref:01-background.adoc[Background]
-* xref:02-architecture.adoc[Architecture]
+* xref:02-whatisopenshift.adoc[Architecture]
 * xref:03-ocp-vs-k8s.adoc[OpenShift vs Kubernetes]
 * xref:04-cli-and-console.adoc[CLI and Web Console]
 * xref:05-projects[Projects]
@@ -14,14 +14,14 @@ xref:10-day-two-agenda.adoc[Jump to Day Two]
 
 By the end of day one, participants will be equipped with foundational knowledge and hands-on experience working with OpenShift. The following learning outcomes are expected:
 
-* **Understand the Components that Comprise OpenShift**:: Gain insight into the architecture of OpenShift, including its control plane, worker nodes, developer tools, and platform services.
+* **Understand the Components that Comprise OpenShift**: Gain insight into the architecture of OpenShift, including its control plane, worker nodes, developer tools, and platform services.
 
-* **Outline the Differences Between OpenShift and Kubernetes**:: Identify how OpenShift builds upon Kubernetes by adding developer-focused tools, enterprise features, and integrated services.
+* **Outline the Differences Between OpenShift and Kubernetes**: Identify how OpenShift builds upon Kubernetes by adding developer-focused tools, enterprise features, and integrated services.
 
-* **Interact with an OpenShift Cluster**:: Learn how to navigate and manage resources using both the OpenShift web console and the command-line interface (`oc`).
+* **Interact with an OpenShift Cluster**: Learn how to navigate and manage resources using both the OpenShift web console and the command-line interface (`oc`).
 
-* **Manage Projects and Resources**:: Understand how to create and manage OpenShift *projects*, and how to organize, monitor, and maintain the resources within them.
+* **Manage Projects and Resources**: Understand how to create and manage OpenShift *projects*, and how to organize, monitor, and maintain the resources within them.
 
-* **Create Applications from Source Code**:: Use tools like Project Kaniko to securely build container images from source code inside a containerized environment—without requiring a Docker daemon.
+* **Create Applications from Source Code**: Use tools like Project Shipwright to securely build container images from source code inside a containerized environment—without requiring a Docker daemon.
 
-* **Expose Applications with Customized Routing**:: Learn how to create and configure OpenShift *routes* to expose services externally, including options for custom domains and TLS settings.
+* **Expose Applications with Customized Routing**: Learn how to create and configure OpenShift *routes* to expose services externally, including options for custom domains and TLS settings.

@@ -1,12 +1,12 @@
 name: modules
-title: Workshop
+title: OpenShift Primer
 version: master
 nav:
   - modules/ROOT/nav.adoc
 
 asciidoc:
   attributes:
-    lab_name: "Workshop"
+    lab_name: "OpenShift Primer"
     release-version: master
     page-pagination: true
     page-links:

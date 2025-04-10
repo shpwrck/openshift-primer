@@ -1,0 +1,117 @@
+= What is OpenShift?
+
+== OpenShift is an *application platform*
+
+In simplest terms, OpenShift is a platform designed to help reliably run applications. It can be deployed on premise, in the cloud, directly on hardware, and also on various hypervisors. While the original focus of the platform was to run applications in linux containers it has since evolved to also run windows application containers and applications hosted by an array of virtualization providers.
+
+[TIP]
+====
+If you can't explain the difference between a virtual machine and a container, look https://www.redhat.com/en/topics/containers/containers-vs-vms[`here`].
+
+image::virtualization-vs-containers_transparent.png[]
+====
+
+== OpenShift is an *open source* application platform
+
+Like the rest of the Red Hat portfolio, OpenShift is open source. While most users won't need to dive into the codebase to identify the source of a behavior, any user certainly can. The operating system https://github.com/openshift/os[(RHEL CoreOS)], control components https://github.com/kubernetes/kubernetes[(Kubernetes)], and layered software solutions https://github.com/orgs/openshift/repositories?type=all&q=operator[(Operators)] are all freely available to read, fork, and patch.   
+
+[NOTE]
+====
+Being open source has the added advantage of being able to run the platform without a dedicated subscription:
+
+* You can run a local version of OpenShift in a local VM with https://github.com/crc-org/crc[`Code Ready Containers(CRC)`].
+* You can run a distributed version of OpenShift on dedicated hardware or virtual machines using https://github.com/okd-project/okd[`OpenShift Kubernetes Distribution(OKD)`]
+====
+
+== OpenShift is an open source application platform *built with Kubernetes*
+
+The original release of OpenShift actually predates the rise of modern standards like https://kubernetes.io/[Kubernetes]. With the release of OpenShift version 3 however, Kubernetes became the foundation of the platform. The OpenShift and Kubernetes communities thrive to this day for a number of reasons. 
+
+Just remember to **PURSUE**...::
+* **P**ortability - Kubernetes makes minimal demands on the underlying infrastructure, and can run on diverse sets of systems.
+* **U**sability - Kubernetes configuration is API driven, and every change can be implemented with YAML syntax.
+* **R**eliability - Kubernetes is self-healing, limiting the effects of service disruption.
+* **S**calability - All of the components that comprise Kubernetes are designed with massive scale in mind.
+* **U**nivesrality - Kubernetes has a large body of supporting documents from both the maintainers and the community.
+* **E**xtensibility - The computing landscape is constantly shifting, and kubernetes was built to accomodate new runtimes, modes of operation, paradigms, etc.
+
+=== Kubernetes Basics
+
+[TIP]
+====
+The content in this section is a minimal description of Kubernetes. If you are new to Kubernetes please refer to these links for more comprehensive tutorials:
+
+* https://www.redhat.com/en/topics/containers/what-is-kubernetes#:~:text=Kubernetes%20is%20a%20platform%20for,are%20grouped%20into%20Kubernetes%20pods.[`What is Kubernetes?`]
+* https://developers.redhat.com/articles/2022/12/21/kubernetes-101-openshift-developers-part-1-components?source=sso#[`Kubernetes 101`]
+* https://kubernetes.io/docs/tutorials/kubernetes-basics/[`Learn Kubernetes Basics`]
+====
+
+==== **Kubernetes Components**
+
+image::components-of-kubernetes.svg[]
+
+== OpenShift is an open source application platform built with Kubernetes, *that includes a suite of additional services to facilitate operations*
+
+OpenShift goes well beyond the capabilities of a basic Kubernetes cluster. We can see a few of the additional components in this diagram taken directly from the https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/architecture/architecture#architecture-platform-introduction_architecture[documentation]. 
+
+image::components-of-openshift.png[]
+
+OpenShift provides "baked in" solutions for Networking, Observability, Machine Configuration, and Container Image Distribution.
+
+== OpenShift is an *enterprise grade* open source application platform built with Kubernetes, that includes a suite of additional services to facilitate operations
+
+The final addition to our definition is "enterprise grade". OpenShift has been validated against a number of robust standards including but not limited to:
+
+* https://access.redhat.com/compliance/nist-sp-800-53[NIST - National Institute of Standards and Technology]
+* https://access.redhat.com/compliance/nerc-cip[NERC CIP - North American Electric Reliability Corporation Critical Infrastructure Protection]
+* https://access.redhat.com/compliance/pci-dss[PCI DSS - Payment Card Industry Data Security Standard]
+* https://access.redhat.com/compliance/disa-stig[DISA STIG - Defense Information Systems Agency Security Technical Implementation Guides]
+* https://access.redhat.com/compliance/cis-benchmarks[CIS - Center For Internet Security Benchmarks]
+
+OpenShift takes much of the guess work out of securing a kubernetes platform with best practice configuration embedded directly into the infrastructure, platform, and runtimes.
+
+== References
+* https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/architecture/architecture[OpenShift Architecture Documentation]
+* https://kubernetes.io/docs/concepts/overview/components[Kubernetes Architecture Documentation]
+
+== Knowledge Check
+
+*Can you explain what happens when you create a new resource in Kubernetes?*
+
+.Click to reveal the answer
+[%collapsible]
+====
+
+.https://github.com/jamiehannaford/what-happens-when-k8s[Deep Dive]
+. The API Server receives your request and validates your credentials and the content.
+. The API Server reformats the request and commits the information to ETCD.
+. Several Controllers begin remediating the difference in desired vs actual state.
+. The Scheduler assigns the resource to the most viable node.
+. The Kubelet identifies an update to the colocated node's state.
+. The Kubelet coordinates with the Container Runtime to create the workload.
+
+====
+
+*How many components does OpenShift add to Kubernetes?*
+
+.Click to reveal the answer
+[%collapsible]
+====
+
+.From the list above:
+* OpenShift Services
+* Cluster Version Operator
+* Observability
+* Networking
+* Operator Lifecycle Manager
+* Integrated Image Registry
+* Machine Management
+
+From the https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/api_overview/understanding-api-support-tiers#mapping-support-tiers-to-openshift-api-groups_understanding-api-tiers[docs]
+
+From a fresh install you can also run the following command to identify all of the additional types associated with OpenShift:
+....
+oc api-resources -o name | grep -e ".*.openshift.io"
+....
+
+====

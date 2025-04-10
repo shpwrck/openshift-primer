@@ -16,9 +16,9 @@ Over the next two days, we’ll dive deep into building, deploying, and managing
 
 To facilitate hands-on learning, this workshop provides the following tools:
 
-* A Terminal for CLI Testing:: Direct access to the OpenShift command-line interface (CLI) for efficient management and control of your applications.
-* A Web Console for Visual Interaction:: A user-friendly graphical interface to explore OpenShift projects, resources, and configurations.
-* An Integrated Development Environment (IDE):: A code development environment preconfigured to streamline your application coding and deployment.
+* A Terminal for CLI Testing: Direct access to the OpenShift command-line interface (CLI) for efficient management and control of your applications.
+* A Web Console for Visual Interaction: A user-friendly graphical interface to explore OpenShift projects, resources, and configurations.
+* An Integrated Development Environment (IDE): A code development environment preconfigured to streamline your application coding and deployment.
 
 These tools ensure a smooth and flexible experience, allowing you to interact with OpenShift both visually and through the command line while coding directly within the environment.
 
@@ -27,7 +27,7 @@ These tools ensure a smooth and flexible experience, allowing you to interact wi
 .Day 1
 * Background: +
 Why you might use OpenShift for application development.
-* Architecture: +
+* What is OpenShift: +
 Components used to run OpenShift
 * OpenShift vs Kubernetes: +
 How OpenShift and Kubernetes differ. 
