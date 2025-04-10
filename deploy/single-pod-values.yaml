@@ -44,7 +44,7 @@ second_terminal_tab:
   display_name: "Terminal 2"
 
 terminal:
-  setup: "true"
+  setup: "false"
   image: quay.io/rhpds/openshift-showroom-terminal-ocp:latest
   name: terminal
   display_name: "Terminal"
@@ -97,7 +97,7 @@ codeserver:
 
 ## To be fully implemented
 ocpconsole:
-  setup: "true"
+  setup: "false"
   user: kubeadmin
 
 novnc:
