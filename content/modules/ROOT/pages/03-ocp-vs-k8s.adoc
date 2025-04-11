@@ -165,3 +165,19 @@ These control SELinuxContext, Supplmental Groups, and Runnable UserIDs for workl
 * https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html-single/networking/index#ovn-kubernetes-network-plugin[Open Virtual Network CNI]
 
 == Knowledge Check
+
+*Generally speaking, any namespace/project is valid as long as it is comprised of lower case letters and hyphens (-).* +
+*What names are not allowed to be created by normal users?*
+
+.Click to reveal the answer
+[%collapsible]
+====
+`openshfit-*` and `kube-*` are reserved project names. +
+
+.Notice that there is nothing preventing namespaces with that format however:
+[source,sh,role=execute]
+----
+oc new-project kube-example #Fails
+oc create ns kube-example #Succeeds
+----
+====
