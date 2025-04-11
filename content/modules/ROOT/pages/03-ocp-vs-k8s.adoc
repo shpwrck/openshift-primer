@@ -1,34 +1,167 @@
 = OpenShift vs Kubernetes
 
-[#projects]
+The relationship between OpenShift and Kubernetes parallels the relationship between YAML and JSON. YAML is considered a superset of JSON, meaning that it provides all of the functionality as well as some additional features. Kubernetes resources will _generally_ operate within an OpenShift environment as is, or with some minor adjustments.
+
+image::openshift-kubernetes-diagram.svg[]
+
+A Kubernetes engineer migrating to OpenShift will do so without much effort, but will not be making effective use of the entire platform. +
+Whereas an OpenShift engineer migrating to Kubernetes will have a higher barrier to migration, but will not be leaving functionality unused.
+
+The following resources are some of the main resources OpenShift adds to Kubernetes. While they aren't truly essential to operating the platform, a cursory understanding will reduce toil and confusion. (sorted by decreasing corellation)
+
 == Projects
 
-[#routes]
+Kubernetes and OpenShift are designed to allow for multiple tenants. Taking a cue from the Linux kernel, both platforms provide isolated "namespaces" for a tenant's resources. Resources deployed in one namespace generally do not impact the behavior of resources deployed in another.
+
+The differences between how OpenShift implements these isolated spaces with "Projects" differs from the Kubernetes implementation only slightly.
+Run the following command to compare the "default" `project` to the "default" `namespace`:
+
+[source,sh,role=execute]
+----
+diff <(oc get ns test -o yaml) <(oc get project test -o yaml)
+----
+
+OpenShift has been engineered to make the difference in these resources virtually transparent. When a namespace is created, OpenShift will create a corresponding project and vice-versa.
+
+The only perceivable difference between these resources lies within a `project`'s ability to leverage OpenShift templates. OpenShift allows a privileged user to modify what is created when a user attempts to create a new project. https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html-single/building_applications/index#configuring-project-creation[link]
+
+Run the following to commands to observe the difference:
+
+[source,sh,role=execute]
+----
+# Create a new project template and install it.
+oc adm create-bootstrap-project-template -o yaml | oc apply -n openshift-config -f -
+oc patch project.config.openshift.io/cluster --type=json -p '[{"op":"add","path":"/spec/projectRequestTemplate","value":{"name":"project-request"}}]'
+
+# Confirm that a new project has an additional rolebinding (admin) while the new namespace does not.
+oc new-project example-project && oc create ns example-ns
+diff <(oc get rolebindings -n example-project -o name) <(oc get rolebindings -n example-ns -o name)
+----
+
+[NOTE]
+====
+While it's true that namespaces isolate resources, they do not necessarily isolate the compute/memory/storage/network that underpins the platform. It's quite possible to degrade the performance of another tenant's resources by deploying resources in a separate namespace. https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/scalability_and_performance/compute-resource-quotas#admin-quota-overview_using-quotas-and-limit-ranges[`Quotas`] will be introduced later to address this.
+====
+
+== Web Console 
+
+Like `projects`, the additional `Web Console` that OpenShift provides does not directly impact the behavior of workloads or control components in any way. Unlike projects however, the difference between what OpenShift and Kubernetes provide is quite perceivable! Kubernetes by default *does not* include a graphical user interface, but OpenShift does. There are several open source options available for Kubernetes such as https://github.com/kubernetes/dashboard[dashboard], https://github.com/lensapp/lens[lens], https://github.com/kubernetes-sigs/headlamp[headlamp], https://github.com/devtron-labs/devtron[devtron], but onboarding any one of them can be something of a burden when it comes to integration, upgrades, and compliance.
+
+.For most audiences, the web console will simply be an interface that allows users to "point and click" through their operations, but it can be modified to include:
+* custom branding
+* additional views
+* quickstarts
+* even an AI assistant!
+
+image::lightspeed.png[]
+
+[NOTE]
+====
+State tuned! +
+We will explore the Web Console in greater detail in the next module.
+====
+
 == Routes
 
-[#console]
-== Console
+Routes are a specific implementation for the generic Kubernetes concern of external application exposure. Because applications hosted in Kubernetes often require a mechanism to serve them on extended/public/global networks, Kubernetes provides a "pluggable" system for this with resources like `ingress` and `gateways`. 
 
-[#ovn]
-== OVN
+Historically `routes` provided a simple and stable implementation before the ingress API became generally available. Today, they are the "batteries include" solution, but do not preclude the use of other ingress options.
 
-[#security]
+[NOTE]
+====
+OpenShift will create Route objects for Ingresses that do not specify an `IngressClass`. This simplifies the adoption of generic Kubernetes configurations, but requires:
+
+* a `host` that aligns with the templated `*.apps.${CLUSTER_NAME}.${BASE_DOMAIN}`
+* annotations to configure TLS settings like:
+** `route.openshift.io/termination` or
+** `route.openshift.io/destination-ca-certificate-secret`
+
+====
+
+== Open Virtual Network Container Network Interface (OVN)
+
+[TIP]
+====
+The topic of Container Network Interfaces is extensive, and what follows is *not* a comprehensive description. +
+
+.For more in depth coverage of the CNI domain:
+* https://www.redhat.com/en/blog/cni-kubernetes[Brief Overview of CNI]
+* https://www.cni.dev/[CNI Homepage]
+* https://kubernetes.io/docs/concepts/services-networking/[Kubernetes Networking Overview]
+
+====
+
+There are many CNI's available for Kubernetes consumption. `Antrea`,`Calico`,`Cilium`,`NSX-T`,`OVN` are just a few that all implement the same specification, but in wildly different ways (eBPF, BGP, RDMA, Hardware Offloading...). The standard for OpenShift since version 4.12 is OVN. There are many specific features that OVN provides, but for the purposes of this workshop, only it's relationship with `kube-proxy` will be discussed. 
+
+*OVN Kubernetes DOES NOT leverage `kube-proxy`* +
+In light of this, troubleshooting network connectivity should follow the procedures outlined https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/networking/ovn-kubernetes-network-plugin#ovn-kubernetes-troubleshooting-sources[here] in. Standard ip
+
+You can confirm this by running:
+[source,sh,role=execute]
+----
+oc get network.operator.openshift.io cluster -o yaml | grep deployKubeProxy
+----
+
 == Security
 
-[#exercises]
-== Exercises
+OpenShift takes `security` very seriously. The entire platform, from hardware to runtime, leverages comprehensive security tooling and practices such as encryption, selinux, seccomp, image signatures, system immutability, etc. Kubernetes can be made secure without additional tooling, but OpenShift enforces rather strict configurations by default. 
 
-.Exercise 1
-[%collapsible]
+.The two primary sources of frustrations for users migrating from Kubernetes to OpenShift are:
+* https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html-single/authentication_and_authorization/index#managing-pod-security-policies[Security Context Constraints]
+** Prevent elevated privileges for resources created by specific accounts
+** Enforced at admission on the pod level  
+* https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html-single/authentication_and_authorization/index#understanding-and-managing-pod-security-admission[Pod Security Admission]
+** Prevent elevated privileges broadly at the namespace level
+** Enforced at admission on the workload level
+** The Pod Security Standards are defined https://kubernetes.io/docs/concepts/security/pod-security-standards/[here]
+
+The correct approach to resolving issues of either type is to reconfigure the failing workload in order to comply with the default policy. There are several circumstances that might prevent this approach however. When the workload can not be configured in a compliant way:
+
+* An appropriate scc must be added to the account associated with the running workload
+
+[source,sh,role=execute]
+----
+oc adm policy add-scc-to-user ${SCC} -z ${SERVICE_ACCOUNT}
+----
+
+* Or the level of enforcement at the namespace level must be reduced
+
+[source,yaml,role=execute]
+----
+apiVersion: v1
+kind: Namespace
+metadata:
+  annotations:
+    openshift.io/sa.scc.mcs: s0:c31,c10
+    openshift.io/sa.scc.supplemental-groups: 1000950000/10000
+    openshift.io/sa.scc.uid-range: 1000950000/10000
+  labels:
+    kubernetes.io/metadata.name: test
+    openshift-pipelines.tekton.dev/namespace-reconcile-version: 1.18.0
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/audit-version: latest
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/warn-version: latest
+    # Add and configure the two lines below #
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+  name: test
+...
+spec: {}
+----
+
+[NOTE]
 ====
+In the previous namespace sample the three annotations are a security configuration associated with SCC's as well. + 
+These control SELinuxContext, Supplmental Groups, and Runnable UserIDs for workloads in a given namespace.
 ====
 
-.Exercise 2
-[%collapsible]
-====
-====
+== References
 
-.Exercise 2
-[%collapsible]
-====
-====
+* https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html-single/building_applications/index#working-with-projects[Projects]
+* https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html-single/web_console/index[Web Console]
+* https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html-single/networking/index#nw-creating-a-route_route-configuration[Routes]
+* https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/networking/configuring-routes#nw-ingress-creating-a-route-via-an-ingress_route-configuration[Ingress Routes]
+* https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html-single/networking/index#ovn-kubernetes-network-plugin[Open Virtual Network CNI]
+
+== Knowledge Check

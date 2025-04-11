@@ -1,7 +1,7 @@
 = Day One Agenda
 
 * xref:01-background.adoc[Background]
-* xref:02-whatisopenshift.adoc[Architecture]
+* xref:02-whatisopenshift.adoc[What is OpenShift?]
 * xref:03-ocp-vs-k8s.adoc[OpenShift vs Kubernetes]
 * xref:04-cli-and-console.adoc[CLI and Web Console]
 * xref:05-projects[Projects]

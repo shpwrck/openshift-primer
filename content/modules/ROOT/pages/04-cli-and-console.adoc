@@ -9,25 +9,12 @@
 [#contextsandclusters]
 == Contexts and Clusters
 
-[#exercises]
-== Exercises
+== Knowledge Check
 
-[source,sh,role=execute]
-----
-oc config
-----
+**
 
-.Exercise 1
+.Click to reveal the answer
 [%collapsible]
 ====
-====
 
-.Exercise 2
-[%collapsible]
-====
-====
-
-.Exercise 2
-[%collapsible]
-====
 ====

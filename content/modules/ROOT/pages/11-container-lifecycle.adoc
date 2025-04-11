@@ -15,20 +15,12 @@
 [#process]
 == Process
 
-[#exercises]
-== Exercises
+== Knowledge Check
 
-.Exercise 1
+**
+
+.Click to reveal the answer
 [%collapsible]
 ====
-====
 
-.Exercise 2
-[%collapsible]
-====
-====
-
-.Exercise 2
-[%collapsible]
-====
 ====

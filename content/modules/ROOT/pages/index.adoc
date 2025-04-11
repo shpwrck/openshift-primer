@@ -27,7 +27,7 @@ These tools ensure a smooth and flexible experience, allowing you to interact wi
 .Day 1
 * Background: +
 Why you might use OpenShift for application development.
-* What is OpenShift: +
+* What is OpenShift?: +
 Components used to run OpenShift
 * OpenShift vs Kubernetes: +
 How OpenShift and Kubernetes differ. 
