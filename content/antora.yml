@@ -10,7 +10,5 @@ asciidoc:
     release-version: master
     page-pagination: true
     page-links:
-    - url: https://redhat.com
-      text: Red Hat
     - url: https://github.com/shpwrck/retail-store-sample-app
       text: Application Source Repository

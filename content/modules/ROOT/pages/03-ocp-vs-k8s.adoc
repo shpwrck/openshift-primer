@@ -125,7 +125,8 @@ The topic of Container Network Interfaces is extensive, and what follows is *not
 
 There are many CNI's available for Kubernetes consumption. `Antrea`,`Calico`,`Cilium`,`NSX-T`,`OVN` are just a few that all implement the same specification, but in wildly different ways (eBPF, BGP, RDMA, Hardware Offloading...). The standard for OpenShift since version 4.12 is OVN. There are many specific features that OVN provides, but for the purposes of this workshop, only it's relationship with `kube-proxy` will be discussed. 
 
-*OVN Kubernetes DOES NOT leverage `kube-proxy`* +
+*OVN Kubernetes DOES NOT leverage `kube-proxy`!*
+
 In light of this, troubleshooting network connectivity should follow the procedures outlined https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/networking/ovn-kubernetes-network-plugin#ovn-kubernetes-troubleshooting-sources[here] in. Standard `iptables` commands are effectively replaced with `ovn-nbctl` and `ovn-sbctl` from within the `ovnkube-node` workload.
 
 You can confirm this by running:
