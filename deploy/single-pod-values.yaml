@@ -44,7 +44,7 @@ second_terminal_tab:
   display_name: "Terminal 2"
 
 terminal:
-  setup: "false"
+  setup: "true"
   image: quay.io/rhpds/openshift-showroom-terminal-ocp:latest
   name: terminal
   display_name: "Terminal"
