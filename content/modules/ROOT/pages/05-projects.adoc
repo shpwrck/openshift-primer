@@ -1,20 +1,276 @@
 = Projects
 
-[#serviceaccounts]
+Before we start deploying workloads, there is one last major concern to be addressed: How to be a responsbile tenant in an OpenShift environment? The https://en.wikipedia.org/wiki/Tragedy_of_the_commons['Tragedy of the Commons'] shows us that without protections OpenShift resources would be depleted and the platform would likely become unusable.
+
+Although the specifics of how to govern tenants can vary from engineer to engineer or from organization to organization, there several standard tools and practices used to maintain a hospitable multitenant OpenShift environment.  
+
+.This section introduces those tools:
+* `Service Accounts` - Provide identities and attribution
+* `Role-Based Access Control (RBAC)` - Provide permissions boundaries
+* `ResourceQuotas` - Provide namespace level maximums
+* `LimitRanges` - Provide resource level maximums
+
 == Service Accounts
 
-[#rbac]
-== Role Based Access Control
+Service accounts are special user identities automatically created for workloads running in your project. They allow pods to securely interact with the OpenShift API and other services. If you are running a workload on OpenShift, then you are already using at least one service account. 
 
-[#quotasandlimitranges]
-== Quotas and Limit Ranges
+.These are the default Service Accounts:
+* `default`: Used by pods without a specified service account.
+* `builder`: Used by build configurations.
+* `deployer`: Used by deployment configurations.
+
+Don't believe me? You can view them with:
+
+[source,sh,role=execute]
+----
+oc get serviceaccounts
+----
+
+Service accounts work in combination with users to provide authentication to the platform. Whereas user authentication comes from an identity provider that is not part of kubernetes, the identity of a service account is provided entirely by the platform itself. The credentials that a service account uses to prove its identity are https://jwt.io/introduction[JSON Web Tokens(JWT)]. 
+
+OpenShift will automatically create and mount these JWTs when a service account is attached to a workload, but you can get a token in a few other ways:
+
+.From the command line
+[source,sh,role=execute]
+----
+oc create token "SERVICE_ACCOUNT_NAME" -n "NAMESPACE"
+----
+
+.From a secret (Linux)
+[source,sh,role=execute]
+----
+cat <<EOF | oc apply -f -
+apiVersion: v1
+kind: Secret
+type: kubernetes.io/service-account-token
+metadata:
+  name: "SECRET_NAME"
+  namespace: default
+  annotations:
+    kubernetes.io/service-account.name: "SERVICE_ACCOUNT_NAME"
+EOF
+oc extract secret/"SECRET_NAME" --to=- --keys=token
+----
+
+.From a secret (Windows)
+[source,sh,role=execute]
+----
+echo {"apiVersion":"v1","kind":"Secret","metadata":{"name":"SECRET_NAME","annotations":{"kubernetes.io/service-account.name":"SERVICE_ACCOUNT_NAME"}},"type":"kubernetes.io/service-account-token"} | oc apply -f -
+oc extract secret/"SECRET_NAME" --to=- --keys=token
+----
+
+
+[NOTE]
+====
+If you are familiar with JSON Web Tokens, you'll know that there is a human readable format behind the encoded one.
+An example token for the `default` service account in the `default` namespace might look like this:
+[source,json,role=execute]
+----
+{
+  // audience
+  "aud": [
+    "https://kubernetes.default.svc"
+  ],
+  // expire date
+  "exp": 1744690648,
+  // issue date
+  "iat": 1744687048,
+  // issuer
+  "iss": "https://kubernetes.default.svc",
+  // unique identifier
+  "jti": "52c10b4a-1526-4197-9601-3021852011fd",
+  // kubernetes identifiers
+  "kubernetes.io": {
+    "namespace": "default",
+    "serviceaccount": {
+      "name": "default",
+      "uid": "f448c70f-ef06-409a-a782-8d71e4943979"
+    }
+  },
+  // start date
+  "nbf": 1744687048,
+  // service account identifier (string form)
+  "sub": "system:serviceaccount:default:default"
+}
+----
+====
+
+And finally, if you ever need to get the token for your current user, you can run the following:
+
+[source,sh,role=execute]
+----
+oc whoami -t
+----
+
+== Role-Based Access Control (RBAC)
+
+With human and machine identies established, access control can be applied. The standard mechanism to accomplish this in OpenShift is `Role Based Access Control` or `RBAC`. Effectively, RBAC is when an identity assumes a role which has been given access to perform some set of actions on a given set of resources and inherits all of the policy enforced on the role. This "assumption" and the "given access" are defined in `RoleBinding`, `ClusterRoleBinding`, `Roles`, and `ClusterRoles` resources.
+
+[NOTE]
+====
+For this workshop, `ClusterRoles` and `ClusterRoleBindings` are nothing more than the cluster scoped versions of `Roles` and `Rolebindings`. 
+A `ClusterRole` can give the same persmissions cluster wide, and a `ClusterRoleBinding` can be associated with any identity clusterwide.
+ClusterRoles do have a slight https://kubernetes.io/docs/reference/access-authn-authz/rbac/#aggregated-clusterroles[difference in implementation] that we will ignore for now.
+====
+
+To create a role based access strategy, you'll need to be able to determine three things:
+. Which actions do I need from all available actions
+. Which API resources do I need from all available resources
+. Which API groups do the resources I need belong to
+
+=== Role Actions
+
+Thankfully this list is static, and directly correlates with HTTP verbs:
+
+[frame=all,grid=all]
+|===
+| HTTP Verb | Request Verb
+
+| POST
+| create
+
+| GET,HEAD
+| get, list, watch
+
+| PUT
+| update
+
+| PATCH
+| patch
+
+| DELETE
+| delete, deletecollection
+
+|===
+
+=== Role Resources and Groups
+
+Unfortunately the list of resources and groups is not as short and not entirely static. OpenShift APIs are always improving and new resources are being added each release.
+
+Obtaining the `GROUP` and `RESOURCE` from a running cluster can be done by:
+
+."Explaining the resource"
+[source,sh,role=execute]
+----
+oc explain "RESOURCE"
+----
+
+."Getting the entire list of API resources"
+[source,sh,role=execute]
+----
+oc api-resources
+----
+
+=== Creating Roles and Rolebindings
+
+Having verbs, resources, and groups, we can now start making roles and rolebindings.
+
+.Create a role
+[source,sh,role=execute]
+----
+oc create role "ROLE_NAME" \
+  --verbs "VERB,VERB,VERB" \
+  --resource "RESOURCE"."GROUP"
+----
+
+.Bind the role to a user or service account
+[source,sh,role=execute]
+----
+oc create rolebinding "ROLEBINDING_NAME" \
+  --role "ROLE_NAME" \
+  (--user "USER" | --serviceaccount "SERVICE_ACCOUNT")
+----
+
+[TIP]
+====
+You can "bind" as many `ROLES` as you want to an identity, so don't be afraid to create multiple roles that are more human readable or map to business logic.
+====
+
+== ResourceQuotas and LimitRanges
+
+The last level of platform protection is targetting resource exhaustion directly. Even though OpenShift can scale to incredible sizes, their may be other constraints limiting the total amount of hardware that can be afforded to the platform (budget, logistics, etc). `ResourceQuotas` and `LimitRanges` work in tandem to guarantee that the maximum number of resources used with a given project is not exceeded, and the consumption of those resources is spread evenly among workloads.
+
+=== ResourceQuotas
+
+Here is a sample `ResourceQuota`::
+[source,yaml,role=execute]
+----
+include::example$resourcequota.yaml[]
+----
+
+This would mean that the total number of pods in the "default" namespace can not exceed 4, and that a total of 2 cores and 2 Gibibytes is all the system resources that these pods can make use of.
+
+=== LimitRanges
+
+LimitRanges control how "smooth" resource consumption is. Given the previous `ResourceQuota`, a project could still have resources anywhere between one pod using all resources (leaving no room for other workloads) and all four pods evenly sharing the resources. 
+
+If our ultimate goal was to have an even distribution of resources, we would pair the previous `ResourceQuota` with a `LimitRange` similar to this::
+[source,yaml,role=execute]
+----
+include::example$limitrange.yaml[]
+----
+
+This would force all pods in this namespace to fall between .250 by 256Mi and .750 by 768Mi. This would also prevent any single pod from consuming all of the available resources.
+
+== References
+
+* https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/authentication_and_authorization/using-service-accounts[Service Accounts]
+* https://jwt.io[JSON Debugger]
+* https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/authentication_and_authorization/using-rbac[Using RBAC]
+* https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/scalability_and_performance/compute-resource-quotas[ResourceQuotas and LimitRanges]
 
 == Knowledge Check
 
-**
+*Where are service account tokens mounted in a running workload?*
 
-.Click to reveal the answer
+.Hint
 [%collapsible]
 ====
+Since all workloads leverage a service account, you can find the token using your linux filesystem skills. + 
+`oc exec -it "POD_NAME" -- sh` will get you into a pod's context.
+====
 
+*How long do service account tokens last?*
+
+.Hint
+[%collapsible]
+====
+You can decode one of your own JWTs or identify the difference in the example above. +
+Once you know (`exp` - `iat`), you can convert to the correct unit of time.
+====
+
+*If a given role is duplicated across several namespaces, how can you reduce the number of roles that need to be managed?*
+
+.Hint
+[%collapsible]
+====
+Do you remember the "NOTE" about `ClusterRoles` and `ClusterRoleBindings`? +
+Well they can be mixed with `Roles` and `RoleBindings`! +
+To remove duplicate `Roles` you simply have to make a `ClusterRole` and change the references in any `RoleBindings`
+====
+
+*ResourceQuotas and LimitRanges only work when you create them, how would you guarantee that they are created when a project is created?*
+
+.Hint
+[%collapsible]
+====
+The solution was introduced in the project section of "OpenShift vs Kubernetes".
+====
+
+*CPU and Memory resources are measured with specific units in OpenShift, what are they?*
+
+.Answer
+[%collapsible]
+====
+`CPU` can be measured with "fractional count" (i.e. 1.0, 2.5, 1.001), or by "millicpu/millicores".
+`Memory` can be measured with base ten units (kilobyte, megabyte, gigabyte...) or base two units (kibibyte, mebibyte, gibibyte...)
+====
+
+*CPU and Memory resources are measured with specific units in OpenShift, what are they?*
+
+.Answer
+[%collapsible]
+====
+`CPU` can be measured with "fractional count" (i.e. 1.0, 2.5, 1.001), or by "millicpu/millicores".
+`Memory` can be measured with base ten units (kilobyte, megabyte, gigabyte...) or base two units (kibibyte, mebibyte, gibibyte...)
 ====

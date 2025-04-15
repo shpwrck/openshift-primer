@@ -1,0 +1,151 @@
+= Scaling Applications
+
+OpenShift enables you to scale your applications based on demand using built-in metrics and autoscaling tools. This section covers the fundamentals of application scaling, how resources are requested and limited, and how to automate scaling with metrics and autoscalers.
+
+[#metrics]
+== Metrics
+
+OpenShift uses the **metrics server** to collect CPU and memory usage data from running pods. This information powers features like the web console's usage graphs and Horizontal Pod Autoscalers (HPAs).
+
+You can view metrics using:
+
+[source,sh]
+----
+oc adm top pods
+oc adm top nodes
+----
+
+These commands show real-time resource consumption for pods and nodes.
+
+=== Exercise: View Pod Metrics
+
+. Deploy a simple app (e.g., `oc new-app nginx`).
+. Wait for metrics collection to initialize (up to a few minutes).
+. Run:
++
+[source,sh]
+----
+oc adm top pods
+----
+. Generate traffic to the app using `curl` or a browser.
+. Run the command again and observe usage changes.
+
+== Resource Limits and Resource Requests
+
+Every container in OpenShift should declare **resource requests and limits** to guide scheduling and ensure fair usage of cluster resources.
+
+* **Requests**: Minimum guaranteed resources for the container.
+* **Limits**: Maximum resources the container can consume.
+
+Example:
+
+[source,yaml]
+----
+resources:
+  requests:
+    memory: "64Mi"
+    cpu: "250m"
+  limits:
+    memory: "128Mi"
+    cpu: "500m"
+----
+
+If a pod exceeds its memory limit, it may be terminated. CPU limits, if exceeded, result in throttling.
+
+=== Exercise: Set Resource Requests and Limits
+
+. Create a deployment with the `resources:` block defined as above.
+. Use `oc describe pod` to verify the requests/limits.
+. Generate load and observe behavior using `oc adm top pods`.
+
+== Horizontal Pod Autoscalers
+
+OpenShift supports **Horizontal Pod Autoscalers (HPAs)** to automatically increase or decrease the number of pod replicas based on metrics.
+
+Basic HPA configuration scales based on average CPU utilization.
+
+Example:
+
+[source,sh]
+----
+oc autoscale deployment my-app --min=1 --max=5 --cpu-percent=50
+----
+
+This command creates an HPA that keeps CPU usage per pod around 50%.
+
+Check the HPA status with:
+
+[source,sh]
+----
+oc get hpa
+----
+
+=== Exercise: Enable HPA
+
+. Deploy a sample app:
++
+[source,sh]
+----
+oc new-app --name=hpa-demo quay.io/openshifttest/hello-openshift
+----
+. Expose it and enable autoscaling:
++
+[source,sh]
+----
+oc expose svc/hpa-demo
+oc autoscale deployment hpa-demo --min=1 --max=5 --cpu-percent=10
+----
+. Generate load (e.g., using `curl` in a loop).
+. Watch for scaling:
++
+[source,sh]
+----
+watch oc get pods
+----
+
+== Custom Metrics for Horizontal Pod Autoscalers
+
+In addition to CPU and memory, OpenShift supports **custom metrics** through integration with tools like Prometheus.
+
+You can configure HPA to use:
+
+* Application-specific metrics (e.g., request count, queue depth)
+* External metrics via adapters (e.g., Prometheus Adapter)
+
+This allows scaling based on what really matters to your app, not just resource usage.
+
+Custom metrics HPA example:
+
+[source,yaml]
+----
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: queue-autoscaler
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: my-queue-app
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+  - type: Pods
+    pods:
+      metric:
+        name: queue_length
+      target:
+        type: AverageValue
+        averageValue: "10"
+----
+
+=== Exercise (Advanced): Explore Custom Metrics
+
+. Confirm Prometheus Adapter is available (your instructor or admin may have set it up).
+. Check what custom metrics are exposed:
++
+[source,sh]
+----
+kubectl get --raw "/apis/custom.metrics.k8s.io/v1beta1" | jq .
+----
+. Review an existing custom-metric HPA YAML and discuss how it works.

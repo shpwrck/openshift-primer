@@ -1,0 +1,138 @@
+= Managing Configuration
+
+OpenShift applications often require configuration data that is external to the container image. This page explains how to use ConfigMaps and Secrets to provide environment-specific settings and how changes can be automatically reflected in running pods.
+
+== ConfigMaps
+
+A **ConfigMap** stores non-sensitive configuration data as key-value pairs. You can use ConfigMaps to:
+
+* Set environment variables
+* Mount configuration files into containers
+* Decouple config from application code
+
+Example ConfigMap:
+
+[source,yaml]
+----
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+data:
+  APP_MODE: production
+  LOG_LEVEL: debug
+----
+
+Mounting the config as environment variables:
+
+[source,yaml]
+----
+envFrom:
+- configMapRef:
+    name: app-config
+----
+
+Or as files in a volume:
+
+[source,yaml]
+----
+volumeMounts:
+- name: config-volume
+  mountPath: /etc/config
+volumes:
+- name: config-volume
+  configMap:
+    name: app-config
+----
+
+=== Exercise: Use a ConfigMap
+
+. Create a ConfigMap:
++
+[source,sh]
+----
+oc create configmap app-config --from-literal=APP_MODE=production --from-literal=LOG_LEVEL=debug
+----
+. Create a pod that uses it as environment variables.
+. Use `oc exec` to shell into the pod and check the env values.
+
+== Secrets
+
+A **Secret** is used to store sensitive information such as passwords, tokens, or keys. Like ConfigMaps, Secrets can be used as:
+
+* Environment variables
+* Volume-mounted files
+
+Secrets are base64-encoded, not encrypted by default (encryption at rest must be enabled cluster-wide).
+
+Example:
+
+[source,yaml]
+----
+apiVersion: v1
+kind: Secret
+metadata:
+  name: db-secret
+type: Opaque
+data:
+  username: YWRtaW4=   # admin
+  password: cGFzc3dvcmQ= # password
+----
+
+Referencing the secret:
+
+[source,yaml]
+----
+env:
+- name: DB_USER
+  valueFrom:
+    secretKeyRef:
+      name: db-secret
+      key: username
+----
+
+=== Exercise: Use a Secret
+
+. Create a secret with base64-encoded values or use the CLI:
++
+[source,sh]
+----
+oc create secret generic db-secret --from-literal=username=admin --from-literal=password=password
+----
+. Deploy a pod that uses the secret as env vars.
+. Confirm secret values are available inside the container using `echo $DB_USER`.
+
+== Automation: Updating Pods with New Configurations
+
+By default, changes to ConfigMaps or Secrets **do not** automatically restart or reload running pods.
+
+However, OpenShift supports **automatic update propagation** via volume mounts:
+
+* When mounted as volumes, updated values are **eventually** reflected in the container (typically within a minute).
+* Environment variable usage does **not** support automatic updates.
+
+For changes to take effect immediately in env vars, pods must be manually restarted.
+
+=== Best Practices
+
+* Use volume mounts if you want in-place updates.
+* Use `DeploymentConfig` triggers with ImageStreams or ConfigMap changes for full redeployment.
+* Use `oc rollout restart` for manual restarts.
+
+[source,sh]
+----
+oc rollout restart deployment my-app
+----
+
+=== Exercise: Observe ConfigMap Update Propagation
+
+. Create a pod with a ConfigMap mounted as a volume.
+. Inside the pod, `cat` the config file.
+. Update the ConfigMap using:
++
+[source,sh]
+----
+oc create configmap app-config --from-literal=APP_MODE=debug -o yaml --dry-run=client | oc apply -f -
+----
+. Wait ~1 minute, then re-check the mounted file in the pod.
+. Optional: restart the pod and confirm the update happens immediately.

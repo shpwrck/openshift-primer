@@ -1,66 +1,35 @@
 = Application Deployment
 
-[#containerbasics]
+Now that we've established some "ground rules" on "fair behavior" in the platform we can start leveraging OpenShift as a platform for applications. This module will cover everything needed to take source code, build it, package it, and deploy it on OpenShift.
+
 == Container Basics
 
-[#helm]
+Containers are simply instances of reusable artifacts called images. 
+
+== Workload Basics
+
 == Helm
 
-[#builds]
-== Builds
+== Builds with OpenShift
 
-.cart-build.yaml
-[%collapsible]
-====
-[,yaml,role="copypaste"]
-----
-include::example$cart-build.yaml[]
-----
-====
+== Builds with Shipwright
 
-.catalog-build.yaml
-[%collapsible]
-====
-[,yaml,role="copypaste"]
-----
-include::example$catalog-build.yaml[]
-----
-====
+== References
 
-.checkout-build.yaml
-[%collapsible]
-====
-[,yaml,role="copypaste"]
-----
-include::example$checkout-build.yaml[]
-----
-====
-
-.orders-build.yaml
-[%collapsible]
-====
-[,yaml,role="copypaste"]
-----
-include::example$orders-build.yaml[]
-----
-====
-
-.ui-build.yaml
-[%collapsible]
-====
-[,yaml,role="copypaste"]
-----
-include::example$ui-build.yaml[]
-----
-====
-
+* https://docs.docker.com/reference/dockerfile/[Dockerfile Reference]
+* https://podman.io/[Podman]
+* https://buildah.io/[Buildah]
+* https://helm.sh/[Helm]
+* https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/building_applications/index[Building Applications (OpenShift)]
+* https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/builds_using_buildconfig/index[Builds with BuildConfig]
+* https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/builds_using_shipwright/index[Builds with Shipwright]
 
 == Knowledge Check
 
-**
+* Question *
 
-.Click to reveal the answer
+.Hint
 [%collapsible]
 ====
-
+Answer
 ====

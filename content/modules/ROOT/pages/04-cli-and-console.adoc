@@ -1,20 +1,213 @@
-= CLI and Web Console
+= Command Line Interface and Web Console
 
-[#locatingresources]
+Now that we've dispensed with the basics, it's time to start practical hands-on exploration of OpenShift. As we've already discussed and demonstrated, the two major methods for a user to interact with an OpenShift environment is through the `Web Console` or the `oc` cli.
+
+== Setup
+
+=== Web Console
+
+.If you have an OpenShift cluster, then you likely already have the console available. The standard address location for the console follows this format:
+* `https://` <~ the web console is secured with TLS
+* `console-openshift-console` <~ "console" is the name of the workload and "openshift-console" is the name of the project in which it exists
+* `.apps` <~ is the standard endpoint that all `route` based traffic is exposed
+* `."CLUSTER_NAME"` <~ remember this for when you track multiple OpenShift environments
+* `."BASE_DOMAIN"` <~ set at install time
+
+.Confirm the web console is healthy like so:
+[source,sh,role=execute]
+----
+curl https://console-openshift-console.apps."CLUSTER_NAME"."BASE_DOMAIN"/health
+----
+
+=== Command Line Client
+
+The `oc` cli requires a little more effort to setup, but nothing extraordinary.
+
+You can find the appropriate CLI on a running cluster using the web console:
+
+.Download the CLI from the Console
+image::console-cli-snapshot.png[]
+
+Or you can download with using well defined URL endpoints:
+
+.Local Cluster
+[source,sh,role=execute]
+----
+curl -L https://downloads-openshift-console.apps."CLUSTER_NAME"."BASE_DOMAIN"/"ARCHITECTURE"/"OPERATING_SYSTEM"/oc.tar | tar -xvf -
+----
+
+.Public Artifact Store
+[source,sh,role=execute]
+----
+curl -L https://mirror.openshift.com/pub/openshift-v4/"ARCHITECTURE"/clients/ocp/stable/openshift-client-linux-"RELEASE_VERSION".tar.gz | tar -zxvf - 
+----
+
 == Locating Resources
 
-[#buildingresources]
+=== Web Console
+
+The design of the console is intuitive, but here are some of the primary areas of interest:
+
+.Administrator Console Basics
+image::administrator-basics.png[]
+. `Role Dropdown`: Navigate between Administration and Development
+. `Red Hat Applications Selector`: Additional Red Hat applications such as *Cluster Manager* and *Hybrid Cloud Console* can be accessed here
+. `Quick Import Options`: Quickly add new resources to OpenShift with yaml files, git repositories, or container images
+. `References and Artifacts`: Links to CLI downloads, versioned documentation, and guided quickstart tutorials
+. `User Configuration`: Manage the current user context and generate new time bound cli credentials
+
+.Developer Console Basics
+image::developer-basics.png[]
+. `Quick Add`: Add new applications from a variety of sources (containers, registries, templates, helm, object storage, etc) 
+. `Topology View`: View the relationship of applications within a project
+. `Application Panel`: High level view of resource information including replicas, configuration, services, and routes
+
+=== Command Line Client
+
+Accessing resources from the cli is simpler, but less pleasant on the eyes. Locating and exploring resources will mostly involve one of the following two commands:
+
+.Get (view in native api format)
+[source,sh,role=execute]
+----
+oc get "RESOURCE_TYPE" "RESOURCE_NAME" (-l|-o|-n|-A|...)
+# -l: filter by labels
+# -o: results format
+# -n: scoped to a namespace
+# -A: include all namespaces
+----
+
+.Describe (view in human-friendly format)
+[source,sh,role=execute]
+----
+oc describe "RESOURCE_TYPE" "RESOURCE_NAME" 
+----
+
 == Building Resources
 
-[#contextsandclusters]
+=== Web Console
+
+The console can be used to simplify the process of constructing resources for OpenShift. 
+
+As a gentle introduction, OpenShift provides `forms` for several resource types.
+
+.Form View
+image::form-view.png[]
+. `Populated Fields`: Reduce the available field options to valid resources
+. `Freeform Field`: Allow for generic string input (either required or optional)
+. `Increment with Units`: Scalable numeric input with orders of magnitude
+. `Toggles/Checkboxes`: Hide irrelevant config behind enabled/disabled markers
+. `Radio Selection`: Select from a predefined static set
+
+For more in depth customization there are several tools built into embeded resource editor
+
+.Editor View
+image::editor-view.png[]
+. `Editor`: Modify yaml with schema assisted tab complete 
+. `YAML`: View and edit the stored configuration for this resource. (Available for all resources)
+. `Schema Sidebar`: Explore the resource schema to identify available keys, values, and their associated types
+
+=== Command Line Client
+
+Unfortunately the cli does not provide as many user experience benefits. Creating and modifying resources is nearly identical to upstream Kubernetes in these are the most relevant commands:
+
+.Create / Apply (submit files previously created/modified in your IDE of choice)
+[source,sh,role=execute]
+----
+oc create/apply -f {$FILENAME} 
+----
+
+.Edit (modify existing cluster resources using the default host IDE)
+[source,sh,role=execute]
+----
+oc edit "RESOURCE_TYPE" "RESOURCE_NAME" 
+----
+
+.Patch (modify existing cluster resources, but without opening an IDE)
+[source,sh,role=execute]
+----
+oc patch "RESOURCE_TYPE" "RESOURCE_NAME" (-p|--patch-file|--type|...)
+# -p: apply an inline patch definition
+# --patch-file: apply a patch defined in a file
+# --type: leverage json, merge, or strategic patch strategies
+----
+
 == Contexts and Clusters
+
+Our final concern involves operations across multiple tenants and multiple clusters. Any given OpenShift user could manage several applications across several projects that are deployed across several clusters. 
+
+=== Web Console
+
+.In this scenario, the console does not provide much additional assistance. Your options are limited to:
+* logging in/out to switch users
+* opening a browser or browser tab for each cluster's independent console
+* leveraging the "Advanced Cluster Management" console plugin to manipulate resources across multiple clusters at once
+
+[NOTE]
+====
+`https://docs.redhat.com/en/documentation/red_hat_advanced_cluster_management_for_kubernetes/2.13/[Advanced Cluster Management (ACM)]` is an advanced topic that is beyond the scope of this workshop. There is an excellent workshop https://youtube.com/playlist?list=PLaR6Rq6Z4IqcKOKT4c0uGkBt3YSRQ9S5v&si=42s9-av-gtOHID3r[here] for those interested in learning about ACM.
+====
+
+=== Command Line Client
+
+Unlike the console, the cli provides several user mechanisms to quickly switch between projects and clusters. In order to understand how the CLI provides this functionality, let's breakdown the terms `Context` and `Cluster`.
+
+.A `Context` is a combination of three things:
+* User: Can be a service account or a user provided by an external identity provider
+* Namespace/Project: Interchangeable in this context
+* Cluster: An api endpoint in the form `https://api."CLUSTER"."DOMAIN":6443`
+
+.You can see two example contexts in the following KUBECONFIG:
+[source,yaml,role=execute]
+----
+include::example$config.yaml[]
+----
+
+A user could manually modify this file to switch between any number of contexts, but there are much quicker ways provided by the cli.
+
+.Get [Users,Contexts,Clusters]
+[source,sh,role=execute]
+----
+oc config get-users ...
+oc config get-contexts ...
+oc config get-clusters ...
+----
+
+.Set [Credentials,Contexts,Clusters]
+[source,sh,role=execute]
+----
+oc config set-credentials ...
+oc config set-contexts ...
+oc config set-clusters ...
+----
+
+.Use [Context] (Changes "current-context" to "CONTEXT")
+[source,sh,role=execute]
+----
+oc config use-context "CONTEXT"
+----
+
+[NOTE]
+====
+There is an asymmetry between the "get" and "set" methods for users. +
+This design implies that the KUBECONFIG, and by extension the cluster, doesn't natively handle users. 
+====
+
+== References
+
+* https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/web_console/index[Web Console]
+* https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/cli_tools/openshift-cli-oc[Command Line Client]
+* https://datatracker.ietf.org/doc/html/rfc6902[JSON Patch Specification]
 
 == Knowledge Check
 
-**
+*How many separate methods exist in the Developer view's "+Add" panel?*
 
-.Click to reveal the answer
-[%collapsible]
-====
+*How many projects are in this cluster?*
 
-====
+*How many projects are "Default Projects"?*
+
+*What are valid values for a Deployment's "spec.strategy.type" field?*
+
+*What command line interfaces are available besides `oc` from the local cluster?*
+
+*Can you switch between two projects/contexts/clusters?*

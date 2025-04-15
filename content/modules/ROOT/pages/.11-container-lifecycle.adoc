@@ -1,0 +1,150 @@
+= Container Lifecycle
+
+OpenShift manages the lifecycle of container images from initial pull to eventual removal. Understanding how images are handled helps ensure consistency, performance, and security in your applications.
+
+== Image Policy
+
+OpenShift controls how and when images are pulled using its **image pull policy**, which is defined in the pod or deployment specification.
+
+=== Common Policies
+
+* `Always` – Pull the image every time the pod starts (default for `:latest` tag).
+* `IfNotPresent` – Pull the image only if it's not already cached on the node.
+* `Never` – Never pull the image; use only what's already present on the node.
+
+Example:
+
+[source,yaml]
+----
+spec:
+  containers:
+  - name: app
+    image: myregistry.io/myimage:latest
+    imagePullPolicy: Always
+----
+
+TIP: For predictable deployments, avoid `:latest` and prefer fixed tags or digests.
+
+=== Exercise: Test Image Pull Behavior
+
+. Deploy a pod with `imagePullPolicy: Always` and update the image tag in the registry.
+. Re-deploy the pod and confirm the image is re-pulled.
+. Repeat using `IfNotPresent` and observe the difference.
+
+[#external-registries]
+== External Registries
+
+By default, OpenShift pulls from public or authenticated registries like Docker Hub or Quay.io. Pulling from **private or self-hosted registries** requires extra configuration.
+
+=== Steps to Use an External Registry
+
+1. Create a Kubernetes `Secret` with your registry credentials:
++
+[source,sh]
+----
+oc create secret docker-registry my-registry-secret \
+  --docker-server=registry.example.com \
+  --docker-username=myuser \
+  --docker-password=mypassword \
+  --docker-email=user@example.com
+----
+2. Link the secret to your service account:
++
+[source,sh]
+----
+oc secrets link default my-registry-secret --for=pull
+----
+
+=== Exercise: Use a Private Image
+
+. Set up a secret for an external registry.
+. Create a pod that pulls an image from the registry.
+. Confirm the image is pulled and the pod starts successfully.
+
+== Image Streams
+
+OpenShift provides **ImageStreams**, a Kubernetes-compatible abstraction to track changes to images over time.
+
+=== Pros
+
+* Automatically detect new image versions and trigger builds/deployments.
+* Integrates with BuildConfigs and DeploymentConfigs.
+* Provides consistent naming and referencing.
+
+=== Cons
+
+* Adds complexity if you're already using standard Kubernetes tooling.
+* Requires additional OpenShift-specific resources.
+
+[source,yaml]
+----
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: myapp
+----
+
+=== Exercise: Create and Use an ImageStream
+
+. Define an `ImageStream` and link it to a DeploymentConfig.
+. Push a new version of the image to the source registry.
+. Watch the DeploymentConfig auto-trigger a new rollout.
+
+== Tags and Digests
+
+Images can be referenced by:
+
+* **Tags** – human-readable labels like `:v1.0`, `:latest`
+* **Digests** – immutable SHA256 hashes
+
+Example digest reference:
+
+[source,yaml]
+----
+image: myimage@sha256:ab1234...
+----
+
+=== Why Use Digests?
+
+* Digests guarantee **immutability** — the image will never change.
+* Tags can point to different versions over time, which may lead to drift or bugs.
+
+TIP: Use digests for production deployments to ensure consistency.
+
+== Process: Image Lifecycle in OpenShift
+
+The full lifecycle of an image inside OpenShift includes:
+
+.Diagram: Image Lifecycle
+image::image-lifecycle.png[]
+
+1. **Pull** – The image is downloaded to the node from a registry.
+2. **Use** – The image is run inside pods.
+3. **Cache** – The image is cached on the node for future reuse.
+4. **Prune (Garbage Collection)** – Images not in use can be cleaned up:
++
+[source,sh]
+----
+oc adm prune images
+----
+
+You can configure image pruning based on age, usage, or tag history limits.
+
+=== Exercise: View and Prune Images
+
+. Run:
++
+[source,sh]
+----
+oc adm top images
+----
+to view storage usage.
+. Simulate a prune operation:
++
+[source,sh]
+----
+oc adm prune images --confirm
+----
+
+NOTE: Pruning should only be done by cluster admins with caution.
+

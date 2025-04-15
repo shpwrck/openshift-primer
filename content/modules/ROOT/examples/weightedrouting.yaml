@@ -1,0 +1,16 @@
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: two-service-route
+spec:
+  host: two-service.route
+  to:
+    kind: Service
+    name: service-a
+    weight: 10
+  alternateBackends:
+  - kind: Service
+    name: service-b
+    weight: 10
+...

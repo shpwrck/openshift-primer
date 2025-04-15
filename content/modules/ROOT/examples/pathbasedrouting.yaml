@@ -1,0 +1,23 @@
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: frontend
+spec:
+  host: example.com
+  path: /web
+  to:
+    kind: Service
+    name: frontend-svc
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: backend
+spec:
+  host: example.com
+  path: /api
+  to:
+    kind: Service
+    name: backend-svc
+...

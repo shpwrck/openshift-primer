@@ -1,23 +1,215 @@
 = OpenShift Networking
 
-[#networkpath]
+OpenShift provides a powerful networking stack to expose your applications running inside the cluster to external users. This section explains how traffic flows into the cluster, how to control it with routes, and how to secure and configure those routes.
+
 == Network Path
 
-[#pathbasedrouting]
-== Path Based Routing
+When a client accesses an OpenShift-hosted application, the traffic follows this general path:
 
-[#security]
-== Security
+.Diagram: Network Path into OpenShift
+image::network-path-diagram.png[]
 
-[#configuration]
-== Configuration
+. Client sends a request to `*.apps.cluster.base.domain`
+. The is resolved to either a Load Balancer or a Virtual IP (VIP)
+. The traffic is sent to a node based on the load balancing algorithm
+. The node receives the traffic and translates it to the router's network namespace
+. The router forwards the traffic to the correct node given the service state and definition 
+
+This is a very *high-level* view. Each bullet point could in fact be expanded into several additional bullet points with a much longer list of relevant technologies. Fortunately for developers, most networking is transparent to developer operations and is more likely to be managed by platform administrators. Developer concerns are normally limited to `Services` and `Routes` definitions. 
+
+== Services
+
+Services provide a single fully qualified domain name (FQDN) and a single IP on which a set of workloads can all be addressed. This design makes accessing services predicatable and reliable.
+
+The FQDN that is associated with any service will follow a common format: +
+`SERVICE_NAME.SERVICE_NAMESPACE.cluster.local`
+
+[NOTE]
+====
+Pods also follow a standard naming convention, but it is less commonly leveraged. +
+`POD_IP.POD_NAMESPACE.pod.cluster.local` +
+- where the (`.`) in the `POD_IP` are replaced with (`-`)
+====
+
+The single IP address that is associated with a service is referred to as a `ClusterIP`. You'll see that defined on every service.
+
+[source,sh,role=execute]
+----
+oc get svc kubernetes -o yaml
+----
+
+Running this command will reveal several references to `ClusterIP` in fact (`clusterIP`,`clusterIPs`, and `type: ClusterIP`). The first two are simply storing the IP address (`clusterIPs handles ipv4 and ipv6`), but the last `type: ClusterIP` is a reference to something more substantial. The `type` field controls how the service itself is implemented on the network and it can come in any of the following forms:
+
+* `ExternalName`: the service is only a "pointer" record without deeper networking implementation
+* `ClusterIP`: limits access to the service to internal traffic 
+* `NodePort`: the service is available to internal traffic, but also on a high numbered port on the network the hosts belong to
+* `LoadBalancer`: does everything a `NodePort` service does, but also facilitates the connection to a hardware or software based load balancer
+
+[NOTE]
+====
+The `NodePort` range is between 30000-32767.
+====
+
+In many situations (particularly in cloud based environments) these four are sufficient to expose workloads internally and externally without much additional work. With "on premise" installs however, there is no cloud controller available and thus a different approach is necessary.
+
+== Routes
+
+`Routes` are the "batteries included" solution OpenShift provides that allows for more sophisticated external network exposure. OpenShift routes are effectively a specific implementation of the upstream https://kubernetes.io/docs/concepts/services-networking/ingress/[Kubernetes Ingress]. The underlying technology that makes this entire routing solution work is https://www.haproxy.com/documentation/haproxy-configuration-manual/latest/[HAProxy].
+
+.Notice the output here:
+[source,sh,role=execute]
+----
+oc exec deployment/router-default -n openshift-ingress -- sh -c "ps -ef"
+----
+
+=== Path-Based Routing
+
+You can route multiple applications or services under a single hostname using **path-based routing**. For example:
+
+* `https://example.com/api` → backend
+* `https://example.com/web` → frontend
+
+This is achieved by setting the `path` on a route:
+
+[source,yaml,role=execute]
+----
+include::example$pathbasedrouting.yaml[]
+----
+
+=== Weighted Routing
+
+You can do the reverse as well! By putting several backends behind a single path you enable more complex deployment strategies. Here's an example of **weighted-routing**
+
+[source,yaml,role=execute]
+----
+include::example$weightedrouting.yaml[]
+----
+
+[NOTE]
+====
+The weights in **weighted-routing** are not percentages. +
+They are defined as "an integer between 0 and 256".
+====
+
+=== Security (TLS Termination)
+
+One of the most important features `Routes` provide is network security with **TLS termination** strategies. Instead of relying solely on the distribution of TLS certificates within every application, a platform can consolidate all TLS concerns into the router itself.
+
+.The three included strategies are:
+* `edge` – TLS is terminated at the router; traffic to pods is HTTP.
+* `passthrough` – TLS traffic is sent directly to the pod.
+* `reencrypt` – TLS is terminated at the router, then re-encrypted and sent to the pod.
+
+[source,yaml,role=execute]
+----
+...
+spec:
+  tls:
+    termination: ("edge"|"passthrough"|"reencrypt")
+    insecureEdgeTerminationPolicy: Redirect
+...
+----
+
+You provide certificates directly in the route with plaintext, or let OpenShift manage them via the more advanced https://cert-manager.io/[cert-manager project].
+
+[source,yaml,role=execute]
+----
+...
+spec:
+  tls:
+    caCertificate: ...inline cacert...
+    certificate: ...inline cert...
+----
+
+=== Configuration via Annotations
+
+There are a number of "advanced options" that `Routes` provide through another mechanism, annotations. The features provided by this method involve concurrency, rate-limiting, timeouts, and more. Listed below are the more commonly used options:
+
+* "haproxy.router.openshift.io/balance": 
+* "haproxy.router.openshift.io/disable_cookies": 
+* "haproxy.router.openshift.io/hsts_header": 
+* "haproxy.router.openshift.io/ip_allowlist": 
+* "haproxy.router.openshift.io/ip_whitelist": 
+* "haproxy.router.openshift.io/pod-concurrent-connections": 
+* "haproxy.router.openshift.io/rate-limit-connections": 
+* "haproxy.router.openshift.io/rewrite-target": 
+* "haproxy.router.openshift.io/timeout": 
+
+[NOTE]
+====
+For a full list of annotations check out "HAProxy Annotations" in the reference list.
+====
+
+You can apply annotations via `oc annotate` or include them in the route YAML:
+
+[source,yaml,role=execute]
+----
+...
+metadata:
+  annotations:
+    haproxy.router.openshift.io/timeout: 10s
+    haproxy.router.openshift.io/rate-limit-connections: "5"
+...
+----
+
+.An easy way to add this functionality is to run
+[source,sh,role=execute]
+----
+# To add an annotation
+oc annotate route -n "NAMESPACE" "ANNOTATION_KEY"="ANNOTATION_VALUE"
+# To remove an annotation
+oc annotate route -n "NAMESPACE" "ANNOTATION_KEY"-
+----
+
+=== Ingress Compatibility
+
+`Routes` are an ingress implementation and 100% compatible with standard Kubernetes. You could deploy all of the necessary components in any Kubernetes cluster using the https://github.com/openshift/router[github source]. Despite this however, `Routes` are not common outisde of OpenShift configuration. The most common solution for Kubernetes networking is Ingress. 
+
+The routing implementation has a solution to this discrepancy. If you have not set the `ingressClassName` field to `openshift-default`, fear not! Ingresses will still be adopted by the routing controller if the `host` field matches a domain currently being monitored by the router. (`*.apps."CLUSTER_NAME"."BASE_DOMAIN"`)
+
+[NOTE]
+====
+Additional annotations for `Route` definition are available with this method::
+* route.openshift.io/termination: "reencrypt"
+* route.openshift.io/destination-ca-certificate-secret: "..."
+====
+
+== References
+
+* https://kubernetes.io/docs/concepts/services-networking/service/[Kubernetes Services]
+* https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/networking/configuring-routes#nw-route-specific-annotations_route-configuration[HAProxy Annotations]
+* https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/networking/configuring-routes#nw-creating-a-route_route-configuration[Routes]
+* https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/networking/configuring-ingress-cluster-traffic#nw-ingress-sharding-concept_configuring-ingress-cluster-traffic-ingress-controller[Ingress Sharding (Advanced)]
 
 == Knowledge Check
 
-**
+*The ClusterIP field of a `Service` is a "string" field with valid values beyond IP addresses. Can you find out what they are, and when they might be used?*
 
-.Click to reveal the answer
+.Answer
 [%collapsible]
 ====
+.The two valid values are:
+* "None"
+* ""
+This will create what is called a https://kubernetes.io/docs/concepts/services-networking/service/#headless-services["Headless Service"]. +
+These services are helpful when a connection needs to be made to one or many specific pods.
+====
 
+*Can you create a route from an `oc` cli command?*
+
+.Answer
+[%collapsible]
+====
+.Yes! Two separate ways in fact:
+* Insecure Routes: `oc expose service "SERVICE_NAME"`
+* Secure Routes: `oc create route (edge|passthrough|reencrypt) --service "SERVICE_NAME" ...`
+====
+
+*What happens when you delete a `Route` that has been created from an `Ingress` resource?*
+
+.Answer
+[%collapsible]
+====
+As with most other resources that have been created with a controller, it will be recreated. +
+The `Ingress` resource sets a declarative configuration that the ingress router controller continually attempts to resolve.
 ====

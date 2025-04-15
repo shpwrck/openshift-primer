@@ -16,9 +16,20 @@ Kubernetes and OpenShift are designed to allow for multiple tenants. Taking a cu
 The differences between how OpenShift implements these isolated spaces with "Projects" differs from the Kubernetes implementation only slightly.
 Run the following command to compare the "default" `project` to the "default" `namespace`:
 
+.Linux
 [source,sh,role=execute]
 ----
+# Compare the YAML definition of each resource
 diff <(oc get ns test -o yaml) <(oc get project test -o yaml)
+----
+
+.Windows
+[source,sh,role=execute]
+----
+# Create a file with the YAML definition of each resource and compare them
+oc get namespace test -o yaml > %Temp%\test-namespace.yaml
+oc get project test -o yaml > %Temp%\test-project.yaml
+FC %Temp%\test-namespace.yaml %Temp%\test-project.yaml
 ----
 
 OpenShift has been engineered to make the difference in these resources virtually transparent. When a namespace is created, OpenShift will create a corresponding project and vice-versa.
@@ -27,6 +38,7 @@ The only perceivable difference between these resources lies within a `project`'
 
 Run the following to commands to observe the difference:
 
+.Linux
 [source,sh,role=execute]
 ----
 # Create a new project template and install it.
@@ -36,6 +48,20 @@ oc patch project.config.openshift.io/cluster --type=json -p '[{"op":"add","path"
 # Confirm that a new project has an additional rolebinding (admin) while the new namespace does not.
 oc new-project example-project && oc create ns example-ns
 diff <(oc get rolebindings -n example-project -o name) <(oc get rolebindings -n example-ns -o name)
+----
+
+.Windows
+[source,sh,role=execute]
+----
+# Create a new project template and install it.
+oc adm create-bootstrap-project-template -o yaml | oc apply -n openshift-config -f -
+oc patch project.config.openshift.io/cluster --type=json -p '[{"op":"add","path":"/spec/projectRequestTemplate","value":{"name":"project-request"}}]'
+
+# Confirm that a new project has an additional rolebinding (admin) while the new namespace does not.
+oc new-project example-project && oc create ns example-ns
+oc get rolebindings -n example-project -o name > %Temp%\rolebindings-project.yaml
+oc get rolebindings -n example-ns -o name > %Temp%\rolebindings-namespace.yaml
+FC %Temp%\rolebindings-project.yaml %Temp%\rolebindings-namespace.yaml
 ----
 
 [NOTE]
@@ -51,9 +77,15 @@ Like `projects`, the additional `Web Console` that OpenShift provides does not d
 * custom branding
 * additional views
 * quickstarts
+* terminal environments
 * even an AI assistant!
 
-image::lightspeed.png[]
+image::console-customizations.png[]
+. `Custom Banners`
+. `Custom Logos`
+. `Custom Sections`
+. `Custom Applications`
+. `Custom Namespace Launchers`
 
 [NOTE]
 ====
@@ -71,7 +103,7 @@ Historically `routes` provided a simple and stable implementation before the ing
 ====
 OpenShift will create Route objects for Ingresses that do not specify an `IngressClass`. This simplifies the adoption of generic Kubernetes configurations, but requires:
 
-* a `host` that aligns with the templated `*.apps.${CLUSTER_NAME}.${BASE_DOMAIN}`
+* a `host` that aligns with the templated `*.apps."CLUSTER_NAME"."BASE_DOMAIN"`
 * annotations to configure TLS settings like:
 ** `route.openshift.io/termination` or
 ** `route.openshift.io/destination-ca-certificate-secret`
@@ -94,12 +126,22 @@ The topic of Container Network Interfaces is extensive, and what follows is *not
 There are many CNI's available for Kubernetes consumption. `Antrea`,`Calico`,`Cilium`,`NSX-T`,`OVN` are just a few that all implement the same specification, but in wildly different ways (eBPF, BGP, RDMA, Hardware Offloading...). The standard for OpenShift since version 4.12 is OVN. There are many specific features that OVN provides, but for the purposes of this workshop, only it's relationship with `kube-proxy` will be discussed. 
 
 *OVN Kubernetes DOES NOT leverage `kube-proxy`* +
-In light of this, troubleshooting network connectivity should follow the procedures outlined https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/networking/ovn-kubernetes-network-plugin#ovn-kubernetes-troubleshooting-sources[here] in. Standard ip
+In light of this, troubleshooting network connectivity should follow the procedures outlined https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/networking/ovn-kubernetes-network-plugin#ovn-kubernetes-troubleshooting-sources[here] in. Standard `iptables` commands are effectively replaced with `ovn-nbctl` and `ovn-sbctl` from within the `ovnkube-node` workload.
 
 You can confirm this by running:
+
+.Linux
 [source,sh,role=execute]
 ----
+# View the running configuration that indicates KubeProxy status
 oc get network.operator.openshift.io cluster -o yaml | grep deployKubeProxy
+----
+
+.Windows
+[source,sh,role=execute]
+----
+# View the running configuration that indicates KubeProxy status
+oc get network.operator.openshift.io cluster -o yaml | FINDSTR deployKubeProxy
 ----
 
 == Security
@@ -121,7 +163,7 @@ The correct approach to resolving issues of either type is to reconfigure the fa
 
 [source,sh,role=execute]
 ----
-oc adm policy add-scc-to-user ${SCC} -z ${SERVICE_ACCOUNT}
+oc adm policy add-scc-to-user "SCC" -z "SERVICE_ACCOUNT"
 ----
 
 * Or the level of enforcement at the namespace level must be reduced
@@ -166,13 +208,12 @@ These control SELinuxContext, Supplmental Groups, and Runnable UserIDs for workl
 
 == Knowledge Check
 
-*Generally speaking, any namespace/project is valid as long as it is comprised of lower case letters and hyphens (-).* +
-*What names are not allowed to be created by normal users?*
+*What project names are reserved for system use only?*
 
-.Click to reveal the answer
+.Answer
 [%collapsible]
 ====
-`openshfit-*` and `kube-*` are reserved project names. +
+`*openshfit-\**` and `*kube-\**` are reserved project names. +
 
 .Notice that there is nothing preventing namespaces with that format however:
 [source,sh,role=execute]
@@ -180,4 +221,36 @@ These control SELinuxContext, Supplmental Groups, and Runnable UserIDs for workl
 oc new-project kube-example #Fails
 oc create ns kube-example #Succeeds
 ----
+
+====
+
+*What opensource tool is used to provide `route` support?*
+
+.Answer
+[%collapsible]
+====
+
+https://github.com/haproxy/haproxy[HAProxy]
+
+.You can confirm that with this command
+[source,sh,role=execute]
+----
+oc exec -n openshift-ingress deploy/router-default -- /bin/sh -c "ps -ef | grep haproxy"
+----
+
+====
+
+*A workload needs to run with a User and Group ID within a range, how would you accomplish this without hardcoding the value in the container?*
+
+.Answer
+[%collapsible]
+====
+
+You could create a new project template as was shown above, but add an annotation that specificies the proper range:
+
+[source,sh,role=execute]
+----
+openshift.io/sa.scc.uid-range: XXXXX/10000
+----
+
 ====
