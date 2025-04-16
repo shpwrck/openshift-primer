@@ -39,4 +39,4 @@ package.json
 yarn.lock
 
 # Don't duplicate Assets
-build/images/
+build/assembler/modules/_images/
