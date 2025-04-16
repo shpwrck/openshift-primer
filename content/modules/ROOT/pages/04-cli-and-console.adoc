@@ -154,7 +154,7 @@ Unlike the console, the cli provides several user mechanisms to quickly switch b
 .A `Context` is a combination of three things:
 * User: Can be a service account or a user provided by an external identity provider
 * Namespace/Project: Interchangeable in this context
-* Cluster: An api endpoint in the form `https://api."CLUSTER"."DOMAIN":6443`
+* Cluster: An api endpoint in the form 'https://api."CLUSTER"."DOMAIN":6443'
 
 .You can see two example contexts in the following KUBECONFIG:
 [source,yaml,role=execute]

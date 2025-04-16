@@ -8,7 +8,7 @@ In simplest terms, OpenShift is a platform designed to help reliably run applica
 ====
 If you can't explain the difference between a virtual machine and a container, look https://www.redhat.com/en/topics/containers/containers-vs-vms[`here`].
 
-image::virtualization-vs-containers_transparent.png[]
+image::virtualization-vs-containers_transparent.jpg[]
 ====
 
 == OpenShift is an *open source* application platform
@@ -48,7 +48,7 @@ The content in this section is a minimal description of Kubernetes. If you are n
 
 ==== **Kubernetes Components**
 
-image::components-of-kubernetes.svg[]
+image::components-of-kubernetes.jpeg[]
 
 == OpenShift is an open source application platform built with Kubernetes, *that includes a suite of additional services to facilitate operations*
 

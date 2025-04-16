@@ -16,7 +16,7 @@ content:
   contentOnly: "false"
   image: ghcr.io/rhpds/showroom-content:prod
   imagePullPolicy: IfNotPresent
-  repoUrl: https://github.com/shpwrck/workshop-example.git 
+  repoUrl: https://github.com/shpwrck/workshop-primer.git 
   repoRef: main
   antoraPlaybook: default-site.yml
   resources:
@@ -97,7 +97,7 @@ codeserver:
 
 ## To be fully implemented
 ocpconsole:
-  setup: "false"
+  setup: "true"
   user: kubeadmin
 
 novnc:

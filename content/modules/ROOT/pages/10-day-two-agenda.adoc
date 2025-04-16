@@ -1,11 +1,11 @@
 = Day Two Agenda
 
-* xref:11-container-lifecycle.adoc[Container Lifecycle]
-* xref:12-managing-configuration.adoc[Managing Configuration]
-* xref:13-scaling-applications.adoc[Scaling Applications]
-* xref:14-debugging-applications.adoc[Debugging Applications]
-* xref:15-deployment-strategies.adoc[Deployment Strategies]
-* xref:16-observability.adoc[Observability]
+//* xref:11-container-lifecycle.adoc[Container Lifecycle]
+//* xref:12-managing-configuration.adoc[Managing Configuration]
+//* xref:13-scaling-applications.adoc[Scaling Applications]
+//* xref:14-debugging-applications.adoc[Debugging Applications]
+//* xref:15-deployment-strategies.adoc[Deployment Strategies]
+//* xref:16-observability.adoc[Observability]
 
 xref:00-day-one-agenda.adoc[Jump to Day One]
 

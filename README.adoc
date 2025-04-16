@@ -1,1 +1,3 @@
-= TBD
+= OpenShift Primer Workshop Repo
+
+https://workshop.k8socp.com[Workshop Link]

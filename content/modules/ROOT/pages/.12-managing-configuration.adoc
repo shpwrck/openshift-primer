@@ -2,6 +2,8 @@
 
 OpenShift applications often require configuration data that is external to the container image. This page explains how to use ConfigMaps and Secrets to provide environment-specific settings and how changes can be automatically reflected in running pods.
 
+== PersistentVolumes and PersistentVolumeClaims
+
 == ConfigMaps
 
 A **ConfigMap** stores non-sensitive configuration data as key-value pairs. You can use ConfigMaps to:

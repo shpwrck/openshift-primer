@@ -2,7 +2,7 @@
 
 The relationship between OpenShift and Kubernetes parallels the relationship between YAML and JSON. YAML is considered a superset of JSON, meaning that it provides all of the functionality as well as some additional features. Kubernetes resources will _generally_ operate within an OpenShift environment as is, or with some minor adjustments.
 
-image::openshift-kubernetes-diagram.svg[]
+image::openshift-kubernetes-diagram.jpeg[]
 
 A Kubernetes engineer migrating to OpenShift will do so without much effort, but will not be making effective use of the entire platform. +
 Whereas an OpenShift engineer migrating to Kubernetes will have a higher barrier to migration, but will not be leaving functionality unused.

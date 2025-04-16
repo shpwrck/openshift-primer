@@ -1,4 +1,5 @@
 = Background
+:doctype: book
 
 == How OpenShift and Kubernetes Help Application Developers
 
