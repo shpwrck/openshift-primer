@@ -16,42 +16,42 @@ Over the next two days, we’ll dive deep into building, deploying, and managing
 
 To facilitate hands-on learning, this workshop provides the following tools:
 
-* A Terminal for CLI Testing: Direct access to the OpenShift command-line interface (CLI) for efficient management and control of your applications.
-* A Web Console for Visual Interaction: A user-friendly graphical interface to explore OpenShift projects, resources, and configurations.
-* An Integrated Development Environment (IDE): A code development environment preconfigured to streamline your application coding and deployment.
+* **A Terminal for CLI Testing**: Direct access to the OpenShift command-line interface (CLI) for efficient management and control of your applications.
+* **A Web Console for Visual Interaction**: A user-friendly graphical interface to explore OpenShift projects, resources, and configurations.
+
 
 These tools ensure a smooth and flexible experience, allowing you to interact with OpenShift both visually and through the command line while coding directly within the environment.
 
 === Agenda
 
 .Day 1
-* Background: +
+* **Background**: +
 Why you might use OpenShift for application development.
-* What is OpenShift?: +
+* **What is OpenShift?**: +
 Components used to run OpenShift
-* OpenShift vs Kubernetes: +
+* **OpenShift vs Kubernetes**: +
 How OpenShift and Kubernetes differ. 
-* CLI and Web Console: +
+* **CLI and Web Console**: +
 OpenShift's most common interfaces.
-* Projects: +
+* **Projects**: +
 OpenShift's workspace resource.
-* Application Deployment: +
+* **Application Deployment**: +
 How to create an application image from source code and package it for OpenShift 
-* OpenShift Networking: +
+* **OpenShift Networking**: +
 Configuration options for exposing application traffic.
 
 .Day 2
-* Container Lifecycle: +
+* **Container Lifecycle**: +
 Handling the image artifact in and out of the OpenShift cluster
-* Managing Configuration: +
+* **Managing Configuration**: +
 Parameterizing applications with dynamic information
-* Scaling Applications: +
+* **Scaling Applications**: +
 Leveraging OpenShift's robust scaling capabilities
-* Debugging Applications: +
+* **Debugging Applications**: +
 Common workflows for identifying failure scenarios and fixes
-* Deployment Strategies: +
+* **Deployment Strategies**: +
 Workloads beyond basic deployments
-* Observabiliity: +
+* **Observabiliity**: +
 Monitoring your application metrics and logs with OpenShift
 
 === Who Should Attend

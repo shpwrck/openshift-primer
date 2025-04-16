@@ -8,8 +8,6 @@
 * xref:06-application-deployment.adoc[Application Deployment]
 * xref:07-openshift-networking.adoc[Networking]
 
-xref:10-day-two-agenda.adoc[Jump to Day Two]
-
 == Outcomes
 
 By the end of day one, participants will be equipped with foundational knowledge and hands-on experience working with OpenShift. The following learning outcomes are expected:
@@ -25,3 +23,5 @@ By the end of day one, participants will be equipped with foundational knowledge
 * **Create Applications from Source Code**: Use tools like Project Shipwright to securely build container images from source code inside a containerized environment—without requiring a Docker daemon.
 
 * **Expose Applications with Customized Routing**: Learn how to create and configure OpenShift *routes* to expose services externally, including options for custom domains and TLS settings.
+
+xref:10-day-two-agenda.adoc[Jump to Day Two]
