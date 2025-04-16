@@ -37,3 +37,6 @@ package.json
 
 # Ignore yarn.lock for Yarn
 yarn.lock
+
+# Don't duplicate Assets
+build/images/
