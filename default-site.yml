@@ -1,7 +1,7 @@
 ---
 site:
   title: OpenShift Primer
-  url: https://redhat-scholars.github.io/course-template
+  url: https://workshop.k8socp.com
   start_page: modules::index.adoc
 
 content:
