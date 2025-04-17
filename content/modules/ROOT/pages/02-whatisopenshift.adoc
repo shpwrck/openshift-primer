@@ -33,7 +33,7 @@ Just remember to **PURSUE**...::
 * **R**eliability - Kubernetes is self-healing, limiting the effects of service disruption.
 * **S**calability - All of the components that comprise Kubernetes are designed with massive scale in mind.
 * **U**nivesrality - Kubernetes has a large body of supporting documents from both the maintainers and the community.
-* **E**xtensibility - The computing landscape is constantly shifting, and kubernetes was built to accomodate new runtimes, modes of operation, paradigms, etc.
+* **E**xtensibility - The computing landscape is constantly shifting, and kubernetes was built to accommodate new runtimes, modes of operation, paradigms, etc.
 
 === Kubernetes Basics
 

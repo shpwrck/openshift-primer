@@ -19,7 +19,7 @@ This is a very *high-level* view. Each bullet point could in fact be expanded in
 
 == Services
 
-Services provide a single fully qualified domain name (FQDN) and a single IP on which a set of workloads can all be addressed. This design makes accessing services predicatable and reliable.
+Services provide a single fully qualified domain name (FQDN) and a single IP on which a set of workloads can all be addressed. This design makes accessing services predictable and reliable.
 
 The FQDN that is associated with any service will follow a common format: +
 `SERVICE_NAME.SERVICE_NAMESPACE.cluster.local`
@@ -163,7 +163,7 @@ oc annotate route -n "NAMESPACE" "ANNOTATION_KEY"-
 
 === Ingress Compatibility
 
-`Routes` are an ingress implementation and 100% compatible with standard Kubernetes. You could deploy all of the necessary components in any Kubernetes cluster using the https://github.com/openshift/router[github source]. Despite this however, `Routes` are not common outisde of OpenShift configuration. The most common solution for Kubernetes networking is Ingress. 
+`Routes` are an ingress implementation and 100% compatible with standard Kubernetes. You could deploy all of the necessary components in any Kubernetes cluster using the https://github.com/openshift/router[github source]. Despite this however, `Routes` are not common outside of OpenShift configuration. The most common solution for Kubernetes networking is Ingress. 
 
 The routing implementation has a solution to this discrepancy. If you have not set the `ingressClassName` field to `openshift-default`, fear not! Ingresses will still be adopted by the routing controller if the `host` field matches a domain currently being monitored by the router. (`*.apps."CLUSTER_NAME"."BASE_DOMAIN"`)
 

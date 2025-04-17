@@ -7,7 +7,7 @@ image::openshift-kubernetes-diagram.jpeg[]
 A Kubernetes engineer migrating to OpenShift will do so without much effort, but will not be making effective use of the entire platform. +
 Whereas an OpenShift engineer migrating to Kubernetes will have a higher barrier to migration, but will not be leaving functionality unused.
 
-The following resources are some of the main resources OpenShift adds to Kubernetes. While they aren't truly essential to operating the platform, a cursory understanding will reduce toil and confusion. (sorted by decreasing corellation)
+The following resources are some of the main resources OpenShift adds to Kubernetes. While they aren't truly essential to operating the platform, a cursory understanding will reduce toil and confusion. (sorted by decreasing correlation)
 
 == Projects
 
@@ -196,7 +196,7 @@ spec: {}
 [NOTE]
 ====
 In the previous namespace sample the three annotations are a security configuration associated with SCC's as well. + 
-These control SELinuxContext, Supplmental Groups, and Runnable UserIDs for workloads in a given namespace.
+These control SELinuxContext, Supplemental Groups, and Runnable UserIDs for workloads in a given namespace.
 ====
 
 == References
@@ -214,7 +214,7 @@ These control SELinuxContext, Supplmental Groups, and Runnable UserIDs for workl
 .Answer
 [%collapsible]
 ====
-`*openshfit-\**` and `*kube-\**` are reserved project names. +
+`*openshift-\**` and `*kube-\**` are reserved project names. +
 
 .Notice that there is nothing preventing namespaces with that format however:
 [source,sh,role=execute]
@@ -247,7 +247,7 @@ oc exec -n openshift-ingress deploy/router-default -- /bin/sh -c "ps -ef | grep 
 [%collapsible]
 ====
 
-You could create a new project template as was shown above, but add an annotation that specificies the proper range:
+You could create a new project template as was shown above, but add an annotation that specifies the proper range:
 
 [source,sh,role=execute]
 ----

@@ -1,8 +1,8 @@
 = Projects
 
-Before we start deploying workloads, there is one last major concern to be addressed: How to be a responsbile tenant in an OpenShift environment? The https://en.wikipedia.org/wiki/Tragedy_of_the_commons['Tragedy of the Commons'] shows us that without protections OpenShift resources would be depleted and the platform would likely become unusable.
+Before we start deploying workloads, there is one last major concern to be addressed: How to be a responsible tenant in an OpenShift environment? The https://en.wikipedia.org/wiki/Tragedy_of_the_commons['Tragedy of the Commons'] shows us that without protections OpenShift resources would be depleted and the platform would likely become unusable.
 
-Although the specifics of how to govern tenants can vary from engineer to engineer or from organization to organization, there several standard tools and practices used to maintain a hospitable multitenant OpenShift environment.  
+Although the specifics of how to govern tenants can vary from engineer to engineer or from organization to organization, there several standard tools and practices used to maintain a hospitable multi-tenant OpenShift environment.  
 
 .This section introduces those tools:
 * `Service Accounts` - Provide identities and attribution
@@ -104,12 +104,12 @@ oc whoami -t
 
 == Role-Based Access Control (RBAC)
 
-With human and machine identies established, access control can be applied. The standard mechanism to accomplish this in OpenShift is `Role Based Access Control` or `RBAC`. Effectively, RBAC is when an identity assumes a role which has been given access to perform some set of actions on a given set of resources and inherits all of the policy enforced on the role. This "assumption" and the "given access" are defined in `RoleBinding`, `ClusterRoleBinding`, `Roles`, and `ClusterRoles` resources.
+With human and machine identities established, access control can be applied. The standard mechanism to accomplish this in OpenShift is `Role Based Access Control` or `RBAC`. Effectively, RBAC is when an identity assumes a role which has been given access to perform some set of actions on a given set of resources and inherits all of the policy enforced on the role. This "assumption" and the "given access" are defined in `RoleBinding`, `ClusterRoleBinding`, `Roles`, and `ClusterRoles` resources.
 
 [NOTE]
 ====
 For this workshop, `ClusterRoles` and `ClusterRoleBindings` are nothing more than the cluster scoped versions of `Roles` and `Rolebindings`. 
-A `ClusterRole` can give the same persmissions cluster wide, and a `ClusterRoleBinding` can be associated with any identity clusterwide.
+A `ClusterRole` can give the same permissions cluster wide, and a `ClusterRoleBinding` can be associated with any identity cluster-wide.
 ClusterRoles do have a slight https://kubernetes.io/docs/reference/access-authn-authz/rbac/#aggregated-clusterroles[difference in implementation] that we will ignore for now.
 ====
 
@@ -188,7 +188,7 @@ You can "bind" as many `ROLES` as you want to an identity, so don't be afraid to
 
 == ResourceQuotas and LimitRanges
 
-The last level of platform protection is targetting resource exhaustion directly. Even though OpenShift can scale to incredible sizes, their may be other constraints limiting the total amount of hardware that can be afforded to the platform (budget, logistics, etc). `ResourceQuotas` and `LimitRanges` work in tandem to guarantee that the maximum number of resources used with a given project is not exceeded, and the consumption of those resources is spread evenly among workloads.
+The last level of platform protection is targeting resource exhaustion directly. Even though OpenShift can scale to incredible sizes, their may be other constraints limiting the total amount of hardware that can be afforded to the platform (budget, logistics, etc). `ResourceQuotas` and `LimitRanges` work in tandem to guarantee that the maximum number of resources used with a given project is not exceeded, and the consumption of those resources is spread evenly among workloads.
 
 === ResourceQuotas
 

@@ -23,7 +23,7 @@ Each (non-empty) line begins with a token in all caps that signifies a specific 
 * `FROM`: Are we starting from `SCRATCH` or are we building **FROM** another image?
 * `WORKDIR`: In our new image, which **WORK**ing **DIR**ectory will be the context for further actions?
 * `COPY`: What files do we need to **COPY** into our new images new working directory?
-* `RUN`: What do we need to **RUN** in our image to acheive the correct configuration?
+* `RUN`: What do we need to **RUN** in our image to achieve the correct configuration?
 * `EXPOSE`: What ports are being **EXPOSE**d by our process?
 * `USER`: What **USER** are we running the process as?
 * `CMD`: What **C**o**M**man**D** are we running when this image is instantiated?
@@ -46,7 +46,7 @@ For the most part the use cases for these instructions are self-evident, but the
 | Both run commands, but at runtime and on build respectively
 
 | CMD vs ENTRYPOINT
-| Both the runtime process, but CMD is overrideable while ENTRYPOINT is not
+| Both the runtime process, but CMD is overridable while ENTRYPOINT is not
 
 | ADD vs COPY
 | Both add files, but ADD should only be used for remote/packaged files
@@ -103,7 +103,7 @@ curl -I localhost:8080/carts/1
 ----
 # From anywhere
 podman kill cart-0.0.1
-podman rmi loclahost/cart:0.0.1
+podman rmi localhost/cart:0.0.1
 ----
 ====
 
@@ -198,7 +198,7 @@ The process for taking what we have and packaging it with helm is more involved 
 .Initialize a helm chart
 [source,sh,role=execute]
 ----
-# Create the file stucture for helm
+# Create the file structure for helm
 helm create cart
 ----
 

@@ -98,7 +98,7 @@ image::form-view.png[]
 . `Toggles/Checkboxes`: Hide irrelevant config behind enabled/disabled markers
 . `Radio Selection`: Select from a predefined static set
 
-For more in depth customization there are several tools built into embeded resource editor
+For more in depth customization there are several tools built into embedded resource editor
 
 .Editor View
 image::editor-view.png[]
