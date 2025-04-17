@@ -7,7 +7,6 @@
 * xref:15-debugging-applications.adoc[Debugging Applications]
 * xref:16-deployment-strategies.adoc[Deployment Strategies]
 
-
 == Outcomes
 
 By the end of day two, participants will have expanded their operational understanding of OpenShift and gained experience with advanced platform capabilities. The following learning outcomes are expected:
@@ -27,7 +26,7 @@ Configure and observe autoscaling behavior based on CPU utilization or custom me
 * **Debug Applications with Built-In Tools**: +
 Leverage OpenShift’s built-in debugging capabilities—such as remote shell access, live container inspection, and diagnostic events—to troubleshoot issues effectively.
 
-* **Understand the Different Workload Options for Applications**: +
-Distinguish between Deployments, DaemonSets, StatefulSets, Jobs, and CronJobs, and know when to use each based on workload behavior and lifecycle needs.
+* **Understand the Different Workload Strategies for Applications**: +
+Learn how OpenShift helps manage modern deployment strategies like Canary Rollouts, Blue/Green Deployments, and A/B Testing.
 
 xref:00-day-one-agenda.adoc[Jump to Day One]
