@@ -2,4 +2,4 @@
 
 https://workshop.k8socp.com[Workshop Link]
 
-PDF exists at `build/assembler/modules/openshift-primer.pdf` (auto-generated)
+https://raw.githubusercontent.com/shpwrck/openshift-primer/refs/heads/main/build/assembler/modules/openshift-primer.pdf[PDF Download]
