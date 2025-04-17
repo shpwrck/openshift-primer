@@ -136,7 +136,7 @@ Behind the scenes, OpenShift handles tracking and pulling the actual image so th
 
 [NOTE]
 ====
-.ImageStream Facts::
+.ImageStream Facts
 * ImageStreams can track images from many sources: external registries, the internal OpenShift registry, or even from builds running inside the cluster.
 * Deployments that have ImageStream triggers will get an annotation like `image.openshift.io/triggers`
 * ImageStreams are namespace scoped, but you can reference them from other namespaces as long as the service account has the right permissions

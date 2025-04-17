@@ -54,7 +54,7 @@ In OpenShift, every container can declare how much CPU and memory it needs — a
 
 For example:
 
-[source,yaml]
+[source,yaml,role=execute]
 ----
 resources:
   requests:

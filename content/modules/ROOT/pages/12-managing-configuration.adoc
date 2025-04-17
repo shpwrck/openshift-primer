@@ -82,6 +82,7 @@ curl "http://localhost:8001/api/v1/nodes/'NAME_OF_NODE'/proxy/configz"
 ====
 This field can be modified by an administrator using the https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/machine_apis/kubeletconfig-machineconfiguration-openshift-io-v1[kubeletConfig] resource.
 ====
+{empty} +
 
 .Here are three resources to test this behavior
 [%collapsible]
