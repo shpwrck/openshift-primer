@@ -42,7 +42,7 @@ oc edit configmap cluster-monitoring-config -n openshift-monitoring
 
 Add or update the following:
 
-[source,yaml]
+[source,yaml,role=execute]
 ----
 data:
   config.yaml: |
