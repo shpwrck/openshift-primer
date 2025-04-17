@@ -1,140 +1,288 @@
 = Managing Configuration
 
-OpenShift applications often require configuration data that is external to the container image. This page explains how to use ConfigMaps and Secrets to provide environment-specific settings and how changes can be automatically reflected in running pods.
+Applications often need more than just code to run — they also need configuration data. In OpenShift, there are multiple ways to supply this configuration to your workloads in a secure, flexible, and dynamic way.
 
-== PersistentVolumes and PersistentVolumeClaims
+In this module, we’ll explore how you can use:
+
+* `ConfigMaps` to inject environment-specific data.
+* `Secrets` to safely store sensitive values like API keys or credentials.
+* `Persistent Volumes` to manage state and external configuration files.
+
+These tools give you powerful ways to separate configuration from code — which is key for portability, reuse, and secure operations.
 
 == ConfigMaps
 
-A **ConfigMap** stores non-sensitive configuration data as key-value pairs. You can use ConfigMaps to:
+ConfigMaps are a way to provide non-sensitive configuration data to your applications. Think of them as key-value pairs you can inject into your workloads — without baking that data into your container image.
 
-* Set environment variables
-* Mount configuration files into containers
-* Decouple config from application code
+You can use a ConfigMap in two main ways:
 
-Example ConfigMap:
+* **As environment variables** — values from the ConfigMap are exposed as environment variables inside your container.
+* **As mounted files** — the key-value pairs are mounted into the container’s filesystem, with each key becoming a filename and each value becoming the file’s contents.
 
-[source,yaml]
+=== Using ConfigMaps as Environment Variables
+
+This is one of the most common approaches. For example, you might create a ConfigMap like this:
+
+[source,sh,role=execute]
+----
+oc create configmap app-config \
+  --from-literal=APP_MODE=production \
+  --from-literal=LOG_LEVEL=debug
+----
+
+And then reference it in a deployment:
+
+[source,yaml,role=execute]
+----
+envFrom:
+  - configMapRef:
+      name: app-config
+----
+
+Inside your container, `APP_MODE` and `LOG_LEVEL` will be available just like any other environment variables.
+
+But there’s a catch: **environment variables are baked into the container at startup**. That means if you update the ConfigMap later, running pods won’t see the new values. You’ll need to redeploy the pod to pick up the change.
+
+=== Using ConfigMaps as Files
+
+If you mount the ConfigMap as a volume, each key becomes a file. For example:
+
+[source,yaml,role=execute]
+----
+volumeMounts:
+  - name: config-volume
+    mountPath: /etc/config
+
+volumes:
+  - name: config-volume
+    configMap:
+      name: app-config
+----
+
+Inside the container, you’ll get files like `/etc/config/APP_MODE` and `/etc/config/LOG_LEVEL`.
+
+In this case, OpenShift **will** update the files on disk if the ConfigMap changes — but not immediately. These updates depend on the **Kubelet's Sync Frequency**, which by default is set to every minute. If the ConfigMap is updated in the cluster, the Kubelet will eventually detect the change and update the mounted files on the node.
+
+You can find the current sync frequency with the following two commands:
+
+.In one terminal
+[source,sh,role=execute]
+----
+# Don't forget to turn this off when you are done!
+oc proxy --port 8001
+----
+
+.In a second terminal
+[source,sh,role=execute]
+----
+curl "http://localhost:8001/api/v1/nodes/'NAME_OF_NODE'/proxy/configz"
+----
+
+[NOTE]
+====
+This field can be modified by an administrator using the https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/machine_apis/kubeletconfig-machineconfiguration-openshift-io-v1[kubeletConfig] resource.
+====
+
+.Here are three resources to test this behavior
+[%collapsible]
+====
+.Original ConfigMap
+[source,yaml,role=execute]
 ----
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: app-config
+  name: foo
+  namespace: default
 data:
-  APP_MODE: production
-  LOG_LEVEL: debug
+  foo: bar
+binaryData: {}
+immutable: false
 ----
 
-Mounting the config as environment variables:
+.Pod with Environment and File mounts
+[source,yaml,role=execute]
+----
+apiVersion: v1
+kind: Pod
+metadata:
+  name: example
+  labels:
+    app: httpd
+  namespace: default
+spec:
+  volumes:
+    - name: configmap
+      configMap:
+        name: foo
+  containers:
+    - name: httpd
+      image: 'image-registry.openshift-image-registry.svc:5000/openshift/httpd:latest'
+      envFrom:
+        - configMapRef:
+            name: foo
+      ports:
+        - containerPort: 8080
+      volumeMounts:
+        - mountPath: /mnt/configmap
+          name: configmap
+----
 
-[source,yaml]
+.Updated ConfigMap
+[source,yaml,role=execute]
 ----
-envFrom:
-- configMapRef:
-    name: app-config
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: foo
+  namespace: default
+data:
+  foo: bar-bar
+binaryData: {}
+immutable: false
 ----
+====
 
-Or as files in a volume:
+Despite this automatic sync, it’s still up to your application to watch for changes and reload them — OpenShift won’t restart the pod automatically.
 
-[source,yaml]
-----
-volumeMounts:
-- name: config-volume
-  mountPath: /etc/config
-volumes:
-- name: config-volume
-  configMap:
-    name: app-config
-----
-
-=== Exercise: Use a ConfigMap
-
-. Create a ConfigMap:
-+
-[source,sh]
-----
-oc create configmap app-config --from-literal=APP_MODE=production --from-literal=LOG_LEVEL=debug
-----
-. Create a pod that uses it as environment variables.
-. Use `oc exec` to shell into the pod and check the env values.
+[NOTE]
+====
+When choosing between environment variables and files, consider how your application loads and refreshes configuration. For static config, environment variables are fine. For dynamic updates, file mounts give you more flexibility — if your app can react to changes.
+====
 
 == Secrets
 
-A **Secret** is used to store sensitive information such as passwords, tokens, or keys. Like ConfigMaps, Secrets can be used as:
+Despite the name, Kubernetes `Secrets` aren’t as secret as you might think.
 
-* Environment variables
-* Volume-mounted files
+By default, a Secret is just a base64-encoded blob stored in etcd — which means it’s not encrypted unless you explicitly enable encryption at rest. Anyone with the right permissions (or enough access to the cluster) can decode and read its contents.
 
-Secrets are base64-encoded, not encrypted by default (encryption at rest must be enabled cluster-wide).
+That said, Secrets are still a useful tool for storing sensitive data like:
 
-Example:
+* API keys
+* Database credentials
+* TLS certificates
 
-[source,yaml]
+Just like ConfigMaps, you can mount Secrets into a container in two main ways:
+
+* **As environment variables** — where each key becomes an environment variable.
+* **As files via volume mounts** — where each key is exposed as a file in a specified path.
+
+But remember: just mounting a Secret doesn’t make it secure — especially if the pod or container has elevated access.
+
+=== Better Secret Management
+
+For production workloads, especially in regulated or security-conscious environments, it’s common to **avoid storing long-lived secrets directly in the cluster**.
+
+Instead, you can pull secrets from more secure sources like:
+
+* https://www.vaultproject.io[HashiCorp Vault]
+* AWS Secrets Manager
+* Azure Key Vault
+* Google Secret Manager
+
+To bridge these external systems with Kubernetes, there are well-supported tools:
+
+* https://external-secrets.io[External Secrets Operator] — syncs external secrets into Kubernetes Secrets.
+* https://secrets-store-csi-driver.sigs.k8s.io[Secrets Store CSI Driver] — mounts secrets directly into pods without ever writing them to etcd.
+
+[NOTE]
+====
+Using Kubernetes Secrets is fine for many basic use cases, but it's a best practice to layer on a dedicated secrets management solution — especially if you're dealing with sensitive, rotating, or regulated credentials.
+====
+
+== Persistent Volumes
+
+Not all configuration fits neatly into key-value pairs.
+
+Sometimes, your application expects to read full files, entire directories, or even structured data that changes over time. In those cases, `Persistent Volumes` (PVs) can provide a more flexible approach.
+
+A Persistent Volume is essentially a chunk of storage that's provisioned for your workload. It can come from many backends — NFS, cloud block storage, local disks, or more — and it stays around even if the pod using it gets deleted.
+
+=== Configuration Use Cases
+
+While Persistent Volumes are often associated with stateful apps (like databases), they can also be used for configuration. For example:
+
+* Mounting large or structured config files that don’t fit into a ConfigMap.
+* Mounting shared configuration across multiple pods or nodes.
+* Supplying application plugins, rules, or custom scripts packaged in a volume.
+
+[NOTE]
+====
+A single ConfigMap has a maximum size of **1 MiB**. If your configuration files are larger than that, or if you need to include binary data, Persistent Volumes are often a better fit.
+====
+
+Unlike ConfigMaps and Secrets, Persistent Volumes are not managed as Kubernetes-native objects by developers — they require additional coordination with the cluster admin or storage provider.
+
+=== How Volume Claims Work
+
+As a developer, you don’t create Persistent Volumes directly. Instead, you create a `PersistentVolumeClaim` (PVC), which describes how much storage you need and how you plan to use it.
+
+Here’s a simple example:
+
+[source,yaml,role=execute]
 ----
 apiVersion: v1
-kind: Secret
+kind: PersistentVolumeClaim
 metadata:
-  name: db-secret
-type: Opaque
-data:
-  username: YWRtaW4=   # admin
-  password: cGFzc3dvcmQ= # password
+  name: config-storage
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
 ----
 
-Referencing the secret:
+When this claim is created, OpenShift looks for a `StorageClass` that defines how to provision the volume. A built-in controller called the **CSI provisioner** talks to the underlying storage system — like AWS EBS, Ceph, or a local storage driver — and creates a volume that satisfies the request.
 
-[source,yaml]
+A `StorageClass` acts like a blueprint for dynamic volume provisioning. It tells OpenShift:
+
+* Which storage backend to use (e.g., AWS EBS, Ceph, or local disk).
+* What parameters to apply (e.g., volume type, IOPS, encryption).
+* Whether volumes should be retained or deleted when the PVC is removed.
+
+Different `StorageClass` objects can offer different performance levels, availability zones, or backup policies — making it easy to match the right storage to the right workload.
+
+The volume is then bound to the PVC and can be mounted into your workload like this:
+
+[source,yaml,role=execute]
 ----
-env:
-- name: DB_USER
-  valueFrom:
-    secretKeyRef:
-      name: db-secret
-      key: username
-----
+volumeMounts:
+  - name: config
+    mountPath: /etc/app/config
 
-=== Exercise: Use a Secret
-
-. Create a secret with base64-encoded values or use the CLI:
-+
-[source,sh]
-----
-oc create secret generic db-secret --from-literal=username=admin --from-literal=password=password
-----
-. Deploy a pod that uses the secret as env vars.
-. Confirm secret values are available inside the container using `echo $DB_USER`.
-
-== Automation: Updating Pods with New Configurations
-
-By default, changes to ConfigMaps or Secrets **do not** automatically restart or reload running pods.
-
-However, OpenShift supports **automatic update propagation** via volume mounts:
-
-* When mounted as volumes, updated values are **eventually** reflected in the container (typically within a minute).
-* Environment variable usage does **not** support automatic updates.
-
-For changes to take effect immediately in env vars, pods must be manually restarted.
-
-=== Best Practices
-
-* Use volume mounts if you want in-place updates.
-* Use `DeploymentConfig` triggers with ImageStreams or ConfigMap changes for full redeployment.
-* Use `oc rollout restart` for manual restarts.
-
-[source,sh]
-----
-oc rollout restart deployment my-app
+volumes:
+  - name: config
+    persistentVolumeClaim:
+      claimName: config-storage
 ----
 
-=== Exercise: Observe ConfigMap Update Propagation
+From the container’s perspective, this is just another directory. But under the hood, it’s backed by real storage, with durability, capacity, and IOPS defined by the backend.
 
-. Create a pod with a ConfigMap mounted as a volume.
-. Inside the pod, `cat` the config file.
-. Update the ConfigMap using:
-+
-[source,sh]
-----
-oc create configmap app-config --from-literal=APP_MODE=debug -o yaml --dry-run=client | oc apply -f -
-----
-. Wait ~1 minute, then re-check the mounted file in the pod.
-. Optional: restart the pod and confirm the update happens immediately.
+[NOTE]
+====
+Unlike Secrets and ConfigMaps, the data inside a Persistent Volume can be modified from within the container. Any changes your application makes to files on the volume will persist.
+
+Also, depending on the access mode (like `ReadWriteMany`), a single volume can sometimes be mounted by multiple pods at the same time — which is useful for shared config, caches, or collaboration between services.
+====
+
+== References
+
+* https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/building_applications/config-maps[ConfigMaps]
+* https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/nodes/working-with-pods#nodes-pods-secrets[Secrets]
+* https://external-secrets.io/latest/[External Secrets Operator]
+* https://secrets-store-csi-driver.sigs.k8s.io/[Secrets Store CSI Driver]
+* https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/storage/index[Storage(Persistent Volumes)]
+
+== Knowledge Check
+
+* What are the two ways a ConfigMap can be mounted into a pod?
+* What happens when you update a ConfigMap that is used as an environment variable?
+* How does mounting a ConfigMap as a file behave differently from mounting it as an environment variable?
+* Why are Kubernetes Secrets not considered fully secure by default?
+* What tools can help integrate external secret management systems with OpenShift?
+* When might you use a Persistent Volume instead of a ConfigMap or Secret?
+* What is a PersistentVolumeClaim, and how does it get fulfilled in OpenShift?
+* What is the role of a StorageClass in dynamic volume provisioning?
+* Can data inside a Persistent Volume be modified by the pod? Why or why not?
+* Under what circumstances can multiple pods share the same volume?

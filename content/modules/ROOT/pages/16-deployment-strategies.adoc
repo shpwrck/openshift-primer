@@ -1,0 +1,448 @@
+= Deployment Strategies
+
+Deploying an application isn’t just about pushing new code — it’s about doing so **safely** and **predictably**, with minimal risk and downtime.
+
+OpenShift gives you several strategies to control how updates roll out, from simple approaches like replacing old pods with new ones, to more advanced workflows like canary and blue-green deployments.
+
+In this module, we’ll walk through:
+
+* The basic rollout strategies: `Recreate` and `Rolling`
+* More advanced models: `Blue-Green`, `Canary`, and `A/B testing`
+* The critical role of health checks in making any of this work
+
+It’s important to understand that **none of these strategies work reliably without health checks**. OpenShift relies on three types of **probes** to know whether a pod is ready, healthy, or even safe to start in the first place:
+
+* **Readiness Probe** — Controls whether a pod is eligible to receive traffic
+* **Liveness Probe** — Detects when a pod needs to be restarted
+* **Startup Probe** — Helps slow-starting containers avoid being killed prematurely
+
+We’ll revisit these probes throughout the examples.
+
+By the end of this module, you’ll understand how to choose the right strategy for your workload — and how to build deployments that are robust, observable, and easy to roll back when something goes wrong.
+
+== Recreate and Rolling Strategies
+
+When you're deploying a new version of your application, OpenShift provides a couple of built-in deployment strategies to manage how pods are replaced.
+
+These two core strategies — **Recreate** and **Rolling** — serve very different purposes depending on the needs of your application.
+
+=== Recreate Strategy
+
+The **Recreate** strategy is the simplest approach: it stops all the old pods **before** starting any new ones.
+
+This means there is a brief period of downtime while the old version is removed and the new version is brought up.
+
+Use this when:
+
+* Your application **can’t tolerate having two versions running at once** (e.g., when there’s a shared database schema change)
+* You’re running a **single-instance** workload that doesn’t need high availability
+* You want to keep deployment logic as simple as possible
+
+[NOTE]
+====
+Recreate is risky for production workloads unless carefully planned. Users will experience downtime unless external routing or failover is used.  
+If your workload cannot tolerate overlap or requires strict startup ordering, consider using a **StatefulSet** instead of a Deployment.
+====
+
+You can specify it in a Deployment like this:
+
+[source,yaml,role=execute]
+----
+spec:
+  strategy:
+    type: Recreate
+----
+
+=== Rolling Strategy
+
+The **Rolling** strategy is the default in OpenShift. It replaces old pods with new ones **gradually**, so there’s always at least part of your application available.
+
+OpenShift spins up a few new pods, waits for them to become ready, and then terminates the old ones in batches.
+
+This works well when:
+
+* Your application can run multiple versions side-by-side (even briefly)
+* You want **zero-downtime** deployments
+* You have health checks configured (readiness and liveness)
+
+You can customize how fast the rollout happens using `maxUnavailable` and `maxSurge`:
+
+[source,yaml,role=execute]
+----
+spec:
+  strategy:
+    type: Rolling
+    rollingParams:
+      maxUnavailable: 25%
+      maxSurge: 25%
+----
+
+This means:
+
+* No more than 25% of the pods can be **unavailable** at a time
+* OpenShift can create **up to 25% more pods** than the desired count during rollout
+
+[NOTE]
+====
+The Rolling strategy relies heavily on **readiness probes**. If a new pod never becomes ready, OpenShift will pause the deployment and report the issue — giving you time to fix things before bad code reaches users.
+====
+
+== Blue-Green Deployment Strategy
+
+The **Blue-Green** strategy involves maintaining two separate environments — one "live" (Blue), and one "staged" (Green). When you're ready to release, you simply switch traffic from Blue to Green.
+
+This strategy minimizes downtime and risk by keeping the new version completely isolated until it's proven to be working.
+
+=== How It Works
+
+1. Your live version (Blue) is running and receiving traffic.
+2. You deploy the new version (Green) as a separate deployment — often with a different name, label, or route.
+3. You run tests against the Green version while it's isolated.
+4. When you're ready, you update a **Service** or **Route** to point to Green.
+5. If anything goes wrong, you can roll back by switching traffic back to Blue.
+
+This strategy requires you to **manually manage routing or labels**, but it gives you maximum control.
+
+=== Example Setup
+
+You might have two deployments:
+
+[source,sh,role=execute]
+----
+oc get deployment
+NAME            READY   UP-TO-DATE   AVAILABLE
+my-app-blue     3/3     3            3
+my-app-green    3/3     3            3
+----
+
+And a service that initially points to Blue:
+
+[source,yaml,role=execute]
+----
+selector:
+  app: my-app
+  color: blue
+----
+
+To switch traffic to Green, you change the selector:
+
+[source,yaml,role=execute]
+----
+selector:
+  app: my-app
+  color: green
+----
+
+Alternatively, if you're using **Routes**, you can assign the Route to the Green deployment instead of Blue, then roll back if needed.
+
+=== When to Use It
+
+* You need **zero-downtime** upgrades with a fast rollback option
+* You want to validate the new version **in production**, but without exposing it to users immediately
+* Your application allows two versions to run in parallel
+
+If you don’t want to manage route switching manually, you can automate blue-green deployment workflows using the **OpenShift GitOps Operator**, which includes support for **Argo Rollouts**. Argo enables declarative progressive delivery strategies like blue-green with built-in traffic switching, automated analysis, and rollbacks — all controlled through GitOps.
+
+[NOTE]
+====
+The OpenShift GitOps Operator (powered by Argo CD and Argo Rollouts) provides native support for automating blue-green and canary rollouts. This can simplify your deployment pipelines by taking care of service and route switching for you.
+====
+
+== Canary Deployment Strategy
+
+The **Canary** strategy is a progressive rollout model where you deploy a small percentage of traffic to a new version of your application and gradually increase it as confidence builds.
+
+This reduces risk by limiting the blast radius of any bugs or regressions. If something goes wrong, you can stop the rollout early — before exposing the issue to all users.
+
+=== How It Works
+
+In a canary deployment:
+
+1. You deploy a new version of the application alongside the stable one.
+2. A **small percentage of traffic** (e.g., 5–10%) is routed to the new version.
+3. You monitor metrics, logs, or user feedback to validate the release.
+4. If all goes well, you gradually increase traffic to the new version until it reaches 100%.
+5. If problems arise, you roll back and send all traffic back to the stable version.
+
+Canary deployments often rely on **advanced traffic routing** to split requests between versions — typically using service mesh, ingress controllers, or route weights.
+
+=== Canary + Blue-Green
+
+Canary is often used **in combination with blue-green** deployments to smooth the transition:
+
+* The "green" environment is deployed with the new version
+* A small percentage of traffic is routed to Green as a **canary**
+* As confidence grows, routing is shifted fully from Blue to Green
+
+This approach gives you the **safe isolation of blue-green** with the **gradual exposure of canary**, resulting in a highly controlled release strategy.
+
+=== Example with Manual Routing
+
+You can implement a basic canary strategy using OpenShift Routes by assigning weights to backends:
+
+[source,yaml,role=execute]
+----
+kind: Route
+spec:
+  to:
+    kind: Service
+    name: my-app-v1
+    weight: 90
+  alternateBackends:
+    - kind: Service
+      name: my-app-v2
+      weight: 10
+----
+
+This sends 90% of the traffic to the stable version and 10% to the canary.
+
+[NOTE]
+====
+Traffic shaping via Route weights is a simple way to implement canary logic in OpenShift. For more sophisticated control, you can use OpenShift Service Mesh (Istio) or the GitOps Operator with Argo Rollouts.
+====
+
+=== Automating with GitOps and Argo
+
+The **OpenShift GitOps Operator** (powered by Argo CD) supports `Canary` rollout steps as part of the `Argo Rollouts` API.
+
+With this setup, you can define a rollout with traffic steps, analysis, and even automatic rollback:
+
+[source,yaml,role=execute]
+----
+strategy:
+  canary:
+    steps:
+      - setWeight: 10
+      - pause:
+          duration: 1m
+      - setWeight: 50
+      - pause:
+          duration: 5m
+----
+
+Argo Rollouts can pause between steps, evaluate metrics, and give you a chance to observe behavior before proceeding.
+
+[NOTE]
+====
+Canary deployments provide a controlled release path, but they work best with **automated observability** (logs, metrics, and alerts) in place. Without feedback signals, a canary is just a slower rollout — not a safer one.
+====
+
+== A/B Testing Strategy
+
+A/B testing is a deployment strategy focused on **running two or more versions of an application in parallel** and directing different types of users or requests to each version. The goal isn’t just safe rollout — it’s **experimentation**.
+
+This approach is often used to test new features, UI changes, or algorithm tweaks on a subset of users and compare behavior, conversion rates, or performance metrics.
+
+=== How It Works
+
+In an A/B setup:
+
+1. Multiple versions of the application (A and B) are deployed side-by-side.
+2. Traffic is split **intentionally**, based on request headers, cookies, user identity, or other rules.
+3. Observability tools are used to compare user behavior between versions.
+4. Based on results, you may promote B to 100%, roll it back, or continue iterating.
+
+Unlike canary deployments, which focus on safe progressive rollout, A/B is about testing **variation** — and both versions may stay live for a long time.
+
+=== Implementing A/B in OpenShift
+
+There’s no built-in A/B testing primitive in Kubernetes or OpenShift, but you can implement it using tools like:
+
+* **OpenShift Routes** with custom middleware (e.g., HAProxy header-based routing)
+* **OpenShift Service Mesh (Istio)** to direct traffic based on headers or cookies
+* **Argo Rollouts** with **analysis templates** that measure business metrics
+
+A/B routing usually relies on **something in the incoming request** — like a custom HTTP header, a cookie, or a user-specific token.
+
+Users might receive these headers:
+
+* From a **feature flag service** or experimentation platform
+* Through **custom headers added by a mobile or frontend client**
+* From an **authentication gateway** or reverse proxy that injects group or role data
+* Via **browser cookies** set after opting into a beta program
+
+For example, using Service Mesh:
+
+[source,yaml,role=execute]
+----
+match:
+  - headers:
+      x-user-group:
+        exact: beta
+    route:
+      - destination:
+          host: my-app-v2
+  - route:
+      - destination:
+          host: my-app-v1
+----
+
+This sends beta users to version B and everyone else to version A.
+
+=== When to Use It
+
+* You want to test features on a **subset of users**
+* You want to compare **business impact** between versions
+* You’re experimenting with UI changes, recommendations, or pricing models
+
+[NOTE]
+====
+A/B testing is about data-driven decisions. It requires coordination between your platform, observability stack, and product team to be effective. It’s less about “rolling out” and more about “learning fast.”
+====
+
+== Health Checks and Probes
+
+We’ve referenced probes several times at this point, but we haven’t given a clear definition. Let’s fix that.
+
+Before you can safely deploy or scale applications, OpenShift needs a way to know whether your containers are behaving correctly. This is where **probes** come in.
+
+OpenShift supports three types of probes:
+
+* **Readiness Probe** — tells OpenShift when a pod is ready to receive traffic
+* **Liveness Probe** — tells OpenShift when a pod should be restarted
+* **Startup Probe** — tells OpenShift how long to wait for an app to start before applying liveness checks
+
+Each of these serves a different purpose during the container lifecycle.
+
+=== Probe Types: Execution vs Network
+
+All probes fall into one of two test categories:
+
+* **Execution-based probes** run a command *inside the container*. This is useful for checking application state, presence of lock files, or internal flags.
+* **Network-based probes** check application connectivity over HTTP, TCP, or gRPC. These are typically used to verify that a service is responsive and accepting traffic.
+
+OpenShift supports the following probe types:
+
+* `exec` — runs a command inside the container
+* `httpGet` — sends an HTTP GET request to a specific path and port
+* `tcpSocket` — opens a TCP connection to a given port
+* `grpc` — performs a gRPC health check using the standard gRPC health protocol
+
+Choosing the right type depends on what your application is doing and how you want to measure its health.
+
+Now let’s look at how each probe type fits into the container lifecycle.
+
+=== Readiness Probes
+
+OpenShift uses readiness probes to decide when a container is eligible to receive traffic from Services. If the readiness check fails, the container is temporarily removed from the pool of backends.
+
+This is especially important during rolling deployments — OpenShift won’t scale down old pods until new ones are **ready**.
+
+Example: HTTP readiness check
+
+[source,yaml,role=execute]
+----
+readinessProbe:
+  httpGet:
+    path: /healthz
+    port: 8080
+  initialDelaySeconds: 5
+  periodSeconds: 10
+----
+
+=== Liveness Probes
+
+Liveness probes detect **long-term failure**. If the probe fails consistently, OpenShift will restart the container. This is useful for recovering from deadlocks, hung processes, or stuck threads.
+
+Example: TCP liveness check
+
+[source,yaml,role=execute]
+----
+livenessProbe:
+  tcpSocket:
+    port: 3306
+  initialDelaySeconds: 15
+  periodSeconds: 20
+----
+
+Example: Exec liveness check
+
+[source,yaml,role=execute]
+----
+livenessProbe:
+  exec:
+    command:
+      - cat
+      - /tmp/app.lock
+  initialDelaySeconds: 10
+  periodSeconds: 5
+----
+
+=== Startup Probes
+
+Startup probes are designed for applications that take a long time to initialize. They delay the start of liveness checks so the container has a chance to fully boot before being restarted prematurely.
+
+If a startup probe is defined, **liveness probes are disabled** until the startup probe succeeds once.
+
+Example: Long boot time
+
+[source,yaml,role=execute]
+----
+startupProbe:
+  httpGet:
+    path: /startup
+    port: 8080
+  failureThreshold: 30
+  periodSeconds: 10
+----
+
+This gives the container up to **5 minutes** (30 × 10 seconds) to start up before OpenShift intervenes.
+
+=== Combining Probes
+
+You can use all three probes in a single container to cover:
+
+* Startup time (via `startupProbe`)
+* Runtime health (via `livenessProbe`)
+* Traffic readiness (via `readinessProbe`)
+
+Example: Combined probe setup
+
+[source,yaml,role=execute]
+----
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: 8080
+  initialDelaySeconds: 5
+  periodSeconds: 10
+
+livenessProbe:
+  httpGet:
+    path: /live
+    port: 8080
+  initialDelaySeconds: 15
+  periodSeconds: 20
+
+startupProbe:
+  httpGet:
+    path: /startup
+    port: 8080
+  failureThreshold: 30
+  periodSeconds: 10
+----
+
+[NOTE]
+====
+Readiness and liveness probes are essential for reliable deployments, scaling, and self-healing. Without them, OpenShift has no way to safely replace or recover containers.
+====
+
+== References
+
+* https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/building_applications/deployments#deployment-strategies[Deployment Strategies]
+* https://github.com/redhat-developer/gitops-operator[GitOps Operator]
+* https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/building_applications/application-health[Health Checks]
+
+
+== Knowledge Check
+
+* What are the key differences between the **Recreate** and **Rolling** deployment strategies?
+* Why are **readiness probes** critical for safe rolling deployments?
+* When would you consider using a **StatefulSet** over a standard Deployment?
+* What is a **blue-green deployment**, and how do you switch traffic between environments?
+* How can OpenShift Routes be used to implement basic **blue-green or canary** deployments?
+* What is the purpose of a **canary rollout**, and how is it different from blue-green?
+* How does **Argo Rollouts** enhance deployment strategies like canary or blue-green?
+* What is the main goal of an **A/B testing** deployment, and how does it differ from a traditional rollout?
+* What kinds of request data (e.g., headers or cookies) might be used to route traffic in an A/B test?
+* Which tools in OpenShift can help automate or control progressive delivery strategies?

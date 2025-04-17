@@ -1,0 +1,13 @@
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: example-triggerauthentication
+  namespace: default
+spec:
+  secretTargetRef:
+  - key: token
+    name: autoscaler-token
+    parameter: bearerToken
+  - key: ca.crt
+    name: autoscaler-token
+    parameter: ca

@@ -1,150 +1,214 @@
 = Container Lifecycle
 
-OpenShift manages the lifecycle of container images from initial pull to eventual removal. Understanding how images are handled helps ensure consistency, performance, and security in your applications.
+Managing container images is often an overlooked part of application development and operations. However, understanding the container image lifecycle in OpenShift can lead to significant benefits. Efficient image management can:
 
-== Image Policy
+* Speed up cold starts on new or rebooted nodes by reducing image pull times.
+* Prevent storage exhaustion by pruning unused or outdated images.
+* Simplify operations in secure or disconnected environments where external registries may be unavailable.
 
-OpenShift controls how and when images are pulled using its **image pull policy**, which is defined in the pod or deployment specification.
+This page explores how images are brought into OpenShift, how they are managed on the cluster, and how the platform automatically prunes old images to maintain performance and stability.
 
-=== Common Policies
+To supplement the standard image lifecycle, we will introduce four supporting technologies: `kubernetes-image-puller`, `mirror registry`, `image-pruner`, and the included internal `image registry`.
 
-* `Always` – Pull the image every time the pod starts (default for `:latest` tag).
-* `IfNotPresent` – Pull the image only if it's not already cached on the node.
-* `Never` – Never pull the image; use only what's already present on the node.
+== Importing Images
 
-Example:
+The simplest way to use an image in OpenShift is to reference it directly in a workload manifest. This can be done with any workload type, such as a `Deployment`, `DaemonSet`, or `StatefulSet`.
 
-[source,yaml]
+In this case, the image is typically hosted on an external registry like https://quay.io[Quay] or https://hub.docker.com[Docker Hub], or on a registry hosted on-premise within the organization. There is no need to import the image beforehand — OpenShift will attempt to pull it when the pod is scheduled.
+
+But what specifically happens after the manifest is applied?
+
+* OpenShift schedules the pod onto a node.
+* The container runtime checks if the image is already present on the node.
+* If not present, the runtime attempts to pull the image from the specified registry.
+* If the registry requires authentication, the runtime uses credentials stored in the cluster (typically via a `Secret` linked to a `ServiceAccount`).
+* Once pulled, the image may be cached locally on the node for future use.
+
+[NOTE]
+====
+Image pulling behavior is controlled by the `imagePullPolicy` field in the container spec. It supports three values:
+
+* `Always` – Always pull the image from the registry, even if it already exists on the node.
+* `IfNotPresent` – Pull the image only if it does not already exist on the node (this is the default for tags other than `:latest`).
+* `Never` – Do not pull the image. Use only what is already available on the node.
+
+Choosing the right policy can help balance reliability, performance, and security depending on your use case.
+====
+
+It's important to note that image caching is **node-specific**. If a pod is rescheduled to a different node — for example, due to a node reboot or scale event — the image must be pulled again on that new node. This can introduce additional latency if the image is large or the registry is slow or unreachable.
+
+To reduce this impact, the https://github.com/che-incubator/kubernetes-image-puller-operator[`kubernetes-image-puller`] project can be used to proactively pre-fetch commonly used or frequently updated images across all nodes in a cluster. +
+{empty} +
+
+.ImagePuller
+[%collapsible]
+====
+
+.Install the operator with
+[source,yaml,role=execute]
 ----
-spec:
-  containers:
-  - name: app
-    image: myregistry.io/myimage:latest
-    imagePullPolicy: Always
-----
-
-TIP: For predictable deployments, avoid `:latest` and prefer fixed tags or digests.
-
-=== Exercise: Test Image Pull Behavior
-
-. Deploy a pod with `imagePullPolicy: Always` and update the image tag in the registry.
-. Re-deploy the pod and confirm the image is re-pulled.
-. Repeat using `IfNotPresent` and observe the difference.
-
-[#external-registries]
-== External Registries
-
-By default, OpenShift pulls from public or authenticated registries like Docker Hub or Quay.io. Pulling from **private or self-hosted registries** requires extra configuration.
-
-=== Steps to Use an External Registry
-
-1. Create a Kubernetes `Secret` with your registry credentials:
-+
-[source,sh]
-----
-oc create secret docker-registry my-registry-secret \
-  --docker-server=registry.example.com \
-  --docker-username=myuser \
-  --docker-password=mypassword \
-  --docker-email=user@example.com
-----
-2. Link the secret to your service account:
-+
-[source,sh]
-----
-oc secrets link default my-registry-secret --for=pull
+include::example$install-image-puller.yaml[]
 ----
 
-=== Exercise: Use a Private Image
+.Create an image-puller resource
+[source,yaml,role=execute]
+----
+include::example$image-puller.yaml[]
+----
 
-. Set up a secret for an external registry.
-. Create a pod that pulls an image from the registry.
-. Confirm the image is pulled and the pod starts successfully.
+====
 
-== Image Streams
+[IMPORTANT]
+====
+The example image-puller resource uses the "latest" tag. Avoid using the latest tag wherever possible, because it does not necessarily provide a consistent image.
+====
 
-OpenShift provides **ImageStreams**, a Kubernetes-compatible abstraction to track changes to images over time.
+=== Disconnected Installs
 
-=== Pros
+In some environments — like high-security data centers or government systems — clusters aren't allowed to reach out to the internet. That means they can’t pull images directly from external registries.
 
-* Automatically detect new image versions and trigger builds/deployments.
-* Integrates with BuildConfigs and DeploymentConfigs.
-* Provides consistent naming and referencing.
+So how do you run workloads in a setup like that?
 
-=== Cons
+The answer is to mirror the images you need into a local registry that the cluster *can* access. This process usually happens ahead of time, in a connected environment. Once the images are downloaded, they’re pushed into a registry that lives inside your network.
 
-* Adds complexity if you're already using standard Kubernetes tooling.
-* Requires additional OpenShift-specific resources.
+Here’s the general approach:
 
-[source,yaml]
+* Pull the images you need while connected.
+* Push them into a registry that’s reachable by the disconnected cluster.
+* Update the cluster configuration so that it uses the internal registry instead of reaching out to the public internet.
+
+OpenShift provides tools like `oc mirror` and `oc adm release mirror` to help automate this process, especially for cluster upgrade images and curated image sets.
+
+[NOTE]
+====
+In disconnected clusters, that local registry becomes critical. If it’s misconfigured or goes down, pods won’t start, and cluster upgrades can break. Make sure it’s reliable and backed up.
+====
+
+And if you want to go one step further, cluster administrators can use a combination of `ImageContentSourcePolicy` (ICSP), `ImageDigestMirrorSet`, and `ImageTagMirrorSet` objects. These let you rewrite image references at the cluster level — so even core OpenShift components pull from your mirrored registries instead of the internet.
+
+== Images on the Cluster
+
+Once an image is pulled, OpenShift doesn’t just forget about it. The platform tracks images using its internal registry, metadata, and built-in Kubernetes resources. This gives OpenShift powerful visibility and automation around how images are stored, updated, and referenced across the cluster.
+
+In this section, we’ll explore how OpenShift manages images that have already been brought into the cluster, including how it stores them, associates them with workloads, and keeps them up to date.
+
+=== ImageStreams
+
+In Kubernetes, you typically reference container images by their full registry URL and tag. But in OpenShift, you have the option to use something more flexible: an `ImageStream`. You have already created one in the "Application Deployment" module!
+
+An ImageStream is a resource that acts like a pointer to one or more related images. It lets you manage versions, automate updates, and even trigger builds or deployments when a new image is available.
+
+You can think of an ImageStream as a named alias for a group of images — similar to how a Git branch points to different commits over time.
+
+In OpenShift you can use standard image references or ImageStreams. So why use ImageStreams?
+
+* They decouple your application from the raw image URL.
+* They enable automatic redeployments or builds when a new image is pushed.
+* They give you visibility into image history, metadata, and source.
+
+A basic ImageStream might look like this:
+
+[source,yaml,role=execute]
 ----
 apiVersion: image.openshift.io/v1
 kind: ImageStream
 metadata:
-  name: myapp
+  name: retail-cart
+  namespace: default
+spec:
+  lookupPolicy:
+    local: false
+status:
+  dockerImageRepository: image-registry.openshift-image-registry.svc:5000/default/retail-cart
+  publicDockerImageRepository: default-route-openshift-image-registry.apps.ms01.k8socp.com/default/retail-cart
+  tags:
+  - items:
+    - created: "2025-04-09T15:43:06Z"
+      dockerImageReference: image-registry.openshift-image-registry.svc:5000/default/retail-cart@sha256:f14cc636d6f62738da50597f32829920b32495a1f714bea431281bba6f4b37bf
+      generation: 1
+      image: sha256:f14cc636d6f62738da50597f32829920b32495a1f714bea431281bba6f4b37bf
+    tag: latest
 ----
 
-=== Exercise: Create and Use an ImageStream
+In this example, the ImageStream is called `retail-cart`, and its `latest` tag points to an external image. Once this is set up, you can reference it in workloads like this `image: image-registry.openshift-image-registry.svc:5000/my-project/my-app@sha256:....` where the `sha256` comes from the ImageStream's tag status.
 
-. Define an `ImageStream` and link it to a DeploymentConfig.
-. Push a new version of the image to the source registry.
-. Watch the DeploymentConfig auto-trigger a new rollout.
+Behind the scenes, OpenShift handles tracking and pulling the actual image so that your workload always uses the correct version.
 
-== Tags and Digests
+[NOTE]
+====
+.ImageStream Facts::
+* ImageStreams can track images from many sources: external registries, the internal OpenShift registry, or even from builds running inside the cluster.
+* Deployments that have ImageStream triggers will get an annotation like `image.openshift.io/triggers`
+* ImageStreams are namespace scoped, but you can reference them from other namespaces as long as the service account has the right permissions
+** `oc policy add-role-to-user system:image-puller system:serviceaccount:test:default --namespace=default` +
+would give the default service account in the test namespace access to the ImageStreams in the default namespace 
+====
 
-Images can be referenced by:
+== Image Pruning
 
-* **Tags** – human-readable labels like `:v1.0`, `:latest`
-* **Digests** – immutable SHA256 hashes
+Over time, clusters accumulate a lot of images — from builds, deployments, and testing. Without cleanup, this can take up valuable storage in the internal registry and slow down operations.
 
-Example digest reference:
+OpenShift includes a built-in pruning mechanism to help manage this. Pruning removes old, unused, or orphaned images from the internal registry, keeping your storage lean and healthy.
 
-[source,yaml]
+You don’t need to manually delete images one by one. The platform provides a way to safely automate cleanup while keeping important images intact.
+
+=== How Pruning Works
+
+Pruning works by checking for images that:
+
+* Are no longer referenced by any ImageStream or workload.
+* Are older than a configured threshold.
+* Have more revisions than the retention policy allows.
+
+When you run a prune operation, OpenShift analyzes the registry and removes image data that’s no longer needed.
+
+Here’s an example command:
+
+[source,sh,role=execute]
 ----
-image: myimage@sha256:ab1234...
-----
-
-=== Why Use Digests?
-
-* Digests guarantee **immutability** — the image will never change.
-* Tags can point to different versions over time, which may lead to drift or bugs.
-
-TIP: Use digests for production deployments to ensure consistency.
-
-== Process: Image Lifecycle in OpenShift
-
-The full lifecycle of an image inside OpenShift includes:
-
-.Diagram: Image Lifecycle
-image::image-lifecycle.png[]
-
-1. **Pull** – The image is downloaded to the node from a registry.
-2. **Use** – The image is run inside pods.
-3. **Cache** – The image is cached on the node for future reuse.
-4. **Prune (Garbage Collection)** – Images not in use can be cleaned up:
-+
-[source,sh]
-----
-oc adm prune images
+oc adm prune images --keep-tag-revisions=3 --keep-younger-than=60m
 ----
 
-You can configure image pruning based on age, usage, or tag history limits.
+This tells OpenShift to:
 
-=== Exercise: View and Prune Images
+* Keep the most recent 3 revisions of each tag.
+* Preserve any images that were pushed in the last 60 minutes.
+* Delete anything older that isn’t referenced.
 
-. Run:
-+
-[source,sh]
+[NOTE]
+====
+Pruning only affects images stored in the **internal** registry. If you'd like to know how images are cleared from nodes directly, look at https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/nodes/working-with-nodes#nodes-nodes-garbage-collection-images_nodes-nodes-configuring[garbage collection].
+====
+
+You can also run pruning in dry-run mode to preview what would be deleted:
+
+[source,sh,role=execute]
 ----
-oc adm top images
-----
-to view storage usage.
-. Simulate a prune operation:
-+
-[source,sh]
-----
-oc adm prune images --confirm
+oc adm prune images --keep-tag-revisions=3 --keep-younger-than=60m --confirm=false
 ----
 
-NOTE: Pruning should only be done by cluster admins with caution.
+This is especially useful in production clusters where caution is critical.
 
+OpenShift includes an `ImagePruner` resource that allows you to schedule pruning as part of cluster operations.
+
+This resource lets cluster administrators define pruning policies and run schedules directly within the cluster — no need for external cron jobs or scripts.
+
+It’s a good idea to monitor registry usage and prune regularly — especially in environments where image builds and CI/CD activity happen often.
+
+== References
+
+* https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/images/index[Images]
+* https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/disconnected_environments/mirroring-in-disconnected-environments[Mirroring]
+* https://github.com/che-incubator/kubernetes-image-puller-operator[Image Puller Operator]
+* https://github.com/openshift/cluster-image-pruner-operator[Image Pruner Operator]
+
+== Knowledge Check
+
+* What happens when a workload references an external image that isn't cached on the node?
+* How are images tracked in OpenShift once they’re imported?
+* What is an ImageStream, and why might you use one instead of a direct image reference?
+* In a disconnected environment, what steps are required to run workloads that depend on public images?
+* What does the `oc adm prune images` command do?
+* How does OpenShift decide which images to prune from the internal registry?
+* What role does the `ImagePruner` resource play in managing image lifecycle automation?
+* What are the uses and differences between `ImageContentSourcePolicy`, `ImageDigestMirrorSet`, and `ImageTagMirrorSet`?

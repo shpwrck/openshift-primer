@@ -1,0 +1,9 @@
+---
+kind: KubernetesImagePuller
+apiVersion: che.eclipse.org/v1alpha1
+metadata:
+  name: image-puller
+  namespace: openshift-operators
+spec:
+  daemonsetName: k8s-image-puller
+  images: 'ubi9=registry.redhat.io/ubi9:latest'

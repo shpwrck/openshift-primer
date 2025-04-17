@@ -1,0 +1,464 @@
+= Debugging Applications
+
+Even with the best CI/CD pipelines and automation, something will eventually go wrong. A container crashes, a pod won’t start, or your app is running — but not responding the way you expect.
+
+OpenShift provides several tools to help you dig into these problems, whether the issue is with your app’s logic, container runtime, network traffic, or storage.
+
+In this module, we’ll walk through techniques for:
+
+* Inspecting pod behavior with the `oc debug` command
+* Troubleshooting networking issues — including service discovery, DNS resolution, and external access
+* Understanding how to debug PVCs and storage mounts
+* Identifying common failure modes like CrashLoopBackOff, OOMKilled, or image pull errors
+* Applying general best practices for diagnosing stuck or failing applications
+
+By the end of this section, you should be able to confidently troubleshoot most common issues that show up when working with OpenShift workloads.
+
+== Common Issues
+
+Before diving into debugging tools, it helps to recognize the types of problems you're most likely to encounter — and where OpenShift reports them.
+
+Containers can fail in many ways, but the symptoms usually show up in a few predictable places:
+
+=== Pod Statuses
+
+You can learn a lot just by checking a pod’s status:
+
+* `CrashLoopBackOff` — the container starts, fails, and restarts repeatedly.
+* `ImagePullBackOff` or `ErrImagePull` — the image couldn’t be pulled, often due to authentication or tag errors.
+* `OOMKilled` — the container was terminated because it exceeded its memory limit.
+* `Pending` — the pod can’t be scheduled, often due to insufficient resources or missing PVCs.
+* `Completed` — the pod finished its task (expected for jobs and init containers).
+
+Use this command to check:
+
+[source,sh,role=execute]
+----
+oc get pods
+----
+
+=== Events
+
+Events are how OpenShift reports issues from the scheduler, controller manager, and other core components. They often show why a pod is stuck or failed.
+
+You can see them with:
+
+[source,sh,role=execute]
+----
+oc describe pod POD_NAME
+----
+
+Look for messages like:
+
+* “FailedScheduling” — usually tied to node availability or resource requests
+* “FailedMount” — often related to volume issues
+* “Back-off restarting failed container” — signals repeated crashes
+
+=== Logs
+
+Logs are often the most direct way to identify application-level issues. If the pod is running or recently failed, try:
+
+[source,sh,role=execute]
+----
+oc logs POD_NAME
+----
+
+If the pod has multiple containers, add `-c` to target one:
+
+[source,sh,role=execute]
+----
+oc logs POD_NAME -c CONTAINER_NAME
+----
+
+[NOTE]
+====
+Most problems show up as a combination of pod status, events, and logs. Understanding how to read those three signals is the first step toward resolving any issue.
+====
+
+== Debug Process
+
+When something goes wrong in OpenShift, it can be tempting to jump straight into logs or YAML files — but the most effective debugging starts with a structured process.
+
+Here’s a common workflow used by experienced developers and administrators:
+
+=== 1. Identify the Symptom
+
+Start with what you know:
+
+* Is the application unavailable, slow, or crashing?
+* Is the pod stuck in a particular state?
+* Are users reporting specific errors or timeouts?
+
+Use `oc get pods` to quickly scan for anomalies in pod status.
+
+=== 2. Gather Context
+
+Check the environment around the failure:
+
+* Is it affecting one pod or many?
+* Has anything recently changed — deployments, configs, images, or secrets?
+* Are any PVCs or services involved?
+
+This helps narrow your investigation.
+
+=== 3. Describe the Resource
+
+Use `oc describe` to get detailed information:
+
+[source,sh,role=execute]
+----
+oc describe pod POD_NAME
+----
+
+Look at the events section, resource limits, volume mounts, and status messages. This will often point directly to the root cause.
+
+=== 4. Check the Logs
+
+If the pod is running or recently failed, pull logs:
+
+[source,sh,role=execute]
+----
+oc logs POD_NAME
+----
+
+If your workload has multiple containers, include `-c CONTAINER_NAME`.
+
+If the pod crashed before writing logs, try:
+
+[source,sh,role=execute]
+----
+oc logs --previous POD_NAME
+----
+
+=== 5. Interactively Debug the Container
+
+If the pod starts but doesn't behave as expected, you can inspect it interactively:
+
+[source,sh,role=execute]
+----
+oc rsh POD_NAME
+----
+
+Or use a clean debug container with OpenShift tooling:
+
+[source,sh,role=execute]
+----
+oc debug pod/POD_NAME
+----
+
+More details on this method are in the *Debug Pod* section below.
+
+This gives you root access to a clone of the environment — great for exploring filesystem layout, testing DNS resolution, or running shell commands.
+
+=== 6. Examine Configuration
+
+If the container is healthy but not working, check mounted config files, environment variables, and injected secrets.
+
+To list environment variables for a specific pod:
+
+[source,sh,role=execute]
+----
+oc set env pod/POD_NAME --list
+----
+
+To list environment variables for all pods in the namespace:
+
+[source,sh,role=execute]
+----
+oc set env pods --all --list
+----
+
+You can also view what volumes are mounted using `oc describe`.
+
+[NOTE]
+====
+Debugging isn’t just about fixing — it’s about learning. If you keep a consistent process, you’ll spot patterns faster and resolve issues more confidently.
+====
+
+== Debug Pod
+
+Sometimes, a pod isn’t working as expected — but it’s hard to tell why. Maybe the container isn’t starting, or it fails before you can log in. In those cases, OpenShift provides two powerful tools to help you investigate: the `oc debug` command and **ephemeral containers**.
+
+Both tools let you interactively explore what’s happening inside a pod — without needing to modify your original deployment.
+
+=== Option 1: Using `oc debug`
+
+The `oc debug` command is one of the most versatile ways to troubleshoot pod behavior.
+
+When you run `oc debug pod/POD_NAME`, OpenShift:
+
+* Creates a **temporary pod** based on the original
+* Replaces the container image with a known-good one (usually a Red Hat UBI image)
+* Mounts the same volumes, secrets, and configs
+* Gives you a shell with root privileges
+
+This is ideal when:
+
+* The container exits before you can run `oc rsh`
+* You need to inspect mounted files, config, or secret data
+* You want a clean environment with troubleshooting tools installed
+
+Example:
+
+[source,sh,role=execute]
+----
+oc debug pod/POD_NAME
+----
+
+Inside the debug shell, you can:
+
+[source,sh,role=execute]
+----
+ls /etc/secrets           # Explore secrets
+cat /etc/resolv.conf      # Check DNS settings
+env                       # View environment variables
+----
+
+You can also change the image used for debugging:
+
+[source,sh,role=execute]
+----
+oc debug pod/POD_NAME --image=registry.access.redhat.com/ubi8/ubi
+----
+
+Or override the container’s entrypoint:
+
+[source,sh,role=execute]
+----
+oc debug pod/POD_NAME -- /bin/bash
+----
+
+=== Option 2: Attaching Ephemeral Containers
+
+An **ephemeral container** is a lightweight debugging container that you can temporarily inject into a running pod — even if the pod’s containers don’t have a shell or crash on startup.
+
+Unlike `oc debug`, ephemeral containers:
+
+* Attach directly to the **live** pod without creating a copy
+* Run side-by-side with existing containers
+* Are not restarted automatically and don’t affect the pod's lifecycle
+
+To add one, use `kubectl` (ephemeral containers are not yet supported directly by `oc`):
+
+[source,sh,role=execute]
+----
+kubectl debug --target=CONTAINER_NAME pod/POD_NAME
+----
+
+This attaches a troubleshooting container (based on UBI by default) to the running pod and targets a specific container (useful for matching volumes or namespaces).
+
+You can verify the container was added by describing the pod:
+
+[source,sh,role=execute]
+----
+oc get pod POD_NAME -o yaml
+----
+
+Look for the `ephemeralContainers` section in the output.
+
+[NOTE]
+====
+Use ephemeral containers when the pod is still running but doesn’t offer a direct shell or logs aren’t telling the full story. Use `oc debug` when the pod crashes immediately or you need a clean shell environment with debugging tools.
+====
+
+== Debug Network
+
+Networking issues can be some of the most frustrating to troubleshoot — because they might not look like networking issues at first. A service times out, a connection is dropped, or an app just “hangs” with no clear reason.
+
+OpenShift networking includes multiple layers: DNS, Services, Routes, Ingress, firewall rules, and pod-to-pod communication — so a structured approach is essential.
+
+=== Start with Context
+
+The most effective way to debug networking issues is to pick a starting point — either:
+
+* The **container/pod that's trying to make a connection**, or
+* The **client that’s trying to reach a service**
+
+Then work your way **step by step** through the network path. This helps you isolate where the failure is happening — and rule out parts that are working.
+
+=== Common Problem Areas
+
+Networking problems can stem from many sources. Here are some of the most common:
+
+* **DNS resolution** — The pod can’t resolve a service name to an IP.
+* **Port issues** — The wrong port is exposed, or the container isn't listening.
+* **Protocol mismatches** — The app expects HTTPS, but the service sends plain HTTP (or vice versa).
+* **Service or endpoint misconfiguration** — A service has no healthy endpoints to forward traffic to.
+* **Node locality issues** — A `Service` with `internalTrafficPolicy: Local` can’t reach a backend if there are no matching pods on the same node.
+* **NetworkPolicy blocking traffic** — A policy is in place that prevents traffic between pods or namespaces.
+* **Pod readiness problems** — A pod isn’t passing its readiness probe, so the service won’t send traffic to it.
+
+=== Tools to Help
+
+Here are some OpenShift-native tools and techniques to help you investigate:
+
+* Use `oc rsh` or `oc debug` to get a shell inside a pod:
++
+[source,sh,role=execute]
+----
+oc rsh POD_NAME
+curl http://SERVICE_NAME:PORT
+----
+
+* Check DNS resolution inside the pod:
++
+[source,sh,role=execute]
+----
+getent hosts SERVICE_NAME
+cat /etc/resolv.conf
+----
+
+* List endpoints for a service (to verify it’s routing to the right pods):
++
+[source,sh,role=execute]
+----
+oc get endpoints SERVICE_NAME
+----
+
+* Examine the service definition and target port:
++
+[source,sh,role=execute]
+----
+oc describe svc SERVICE_NAME
+----
+
+* Test across namespaces:
++
+[source,sh,role=execute]
+----
+curl http://SERVICE_NAME.NAMESPACE.svc.cluster.local:PORT
+----
+
+* Use `oc exec` or `oc debug` with `tcpdump`, `netstat`, or `ss` for deeper TCP-level debugging (you may need to install these tools in a debug pod).
+
+[NOTE]
+====
+When debugging network issues, assume nothing. A single missing port, label, or probe can silently break connectivity. Step-by-step checks help you validate each layer — and prevent wild goose chases.
+====
+
+== Debug Storage
+
+Storage issues can be subtle — your application may fail to start, hang on I/O, or crash unexpectedly. In OpenShift, Persistent Volume Claims (PVCs) are used to bind workloads to storage. If that binding fails or the volume misbehaves, it can block the entire pod from running.
+
+The good news is: most storage problems can be debugged with a consistent set of steps.
+
+=== What Can Go Wrong?
+
+Some common storage-related problems include:
+
+* A pod is stuck in `Pending` because its PVC hasn’t been bound
+* A PVC is created, but no `PersistentVolume` is available to match it
+* The pod fails with a `FailedMount` event or hangs during startup
+* The container logs show read/write errors or permission issues
+* The pod is running, but the expected files aren’t present
+
+=== Step-by-Step Debugging
+
+Here’s a methodical process to follow:
+
+==== 1. Check the PVC status
+
+[source,sh,role=execute]
+----
+oc get pvc
+----
+
+You should see the `STATUS` column as `Bound`. If it's `Pending`, the cluster couldn’t find or create a matching volume.
+
+To see more detail:
+
+[source,sh,role=execute]
+----
+oc describe pvc PVC_NAME
+----
+
+Look for messages about why the binding failed (e.g., no matching `StorageClass`, size too large, etc.).
+
+==== 2. Check the pod’s event logs
+
+Use `oc describe pod` to look for `FailedMount` or `MountVolume.SetUp` errors:
+
+[source,sh,role=execute]
+----
+oc describe pod POD_NAME
+----
+
+Common issues include:
+
+* AccessMode mismatch (`ReadWriteOnce` vs `ReadOnlyMany`)
+* Volume not attaching or not mounting
+* File system formatting errors
+
+==== 3. Enter the pod and inspect the mount
+
+If the pod is running, you can inspect the mount inside the container:
+
+[source,sh,role=execute]
+----
+oc rsh POD_NAME
+mount | grep /mnt
+df -h
+ls -l /mnt/data   # Replace with your actual mount path
+----
+
+Make sure the volume is there, readable, and writable.
+
+==== 4. Check file permissions and user IDs
+
+If the files are present but inaccessible, the problem might be with UID/GID mismatches or restrictive securityContext settings.
+
+* Make sure the volume contents are owned by the correct UID
+* Check if the container is running as non-root
+
+You can also inspect the SCC (Security Context Constraint) in use:
+
+[source,sh,role=execute]
+----
+oc get pod POD_NAME -o yaml | grep -i security
+----
+
+==== 5. Look at the StorageClass
+
+If PVC provisioning is failing, check what `StorageClass` is being used:
+
+[source,sh,role=execute]
+----
+oc get storageclass
+----
+
+Then describe it:
+
+[source,sh,role=execute]
+----
+oc describe storageclass CLASS_NAME
+----
+
+This can reveal issues like reclaim policy, volumeBindingMode, or provisioner errors.
+
+[NOTE]
+====
+Storage issues can block pods silently. If your app won’t start and no logs are printed, always check for missing volumes or failed mounts.
+====
+
+[IMPORTANT]
+====
+Don't forget that Red Hat Support is just an email away!
+====
+
+== References
+
+* https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/support/troubleshooting#investigating-pod-issues[Investigating Pod Issues]
+* https://www.redhat.com/en/blog/how-oc-debug-works[How OC Debug Works]
+* https://kubernetes.io/docs/concepts/workloads/pods/ephemeral-containers/[Ephemeral Containers]
+
+== Knowledge Check
+
+* What are some of the most common pod status values, and what do they indicate?
+* How can you view recent events related to a pod's failure?
+* What’s the difference between using `oc rsh` and `oc debug`?
+* What are ephemeral containers, and when would you use one over `oc debug`?
+* What step-by-step approach can help you diagnose a failed network connection inside a pod?
+* How can `internalTrafficPolicy` affect pod-to-pod connectivity?
+* What commands can you use to check that a PVC is correctly bound and mounted?
+* How can incorrect file permissions or security contexts cause read/write errors on a mounted volume?
+* Why is it important to understand both the pod definition and the underlying `StorageClass` when debugging storage issues?
