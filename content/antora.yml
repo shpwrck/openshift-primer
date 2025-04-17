@@ -12,3 +12,5 @@ asciidoc:
     page-links:
     - url: https://github.com/shpwrck/retail-store-sample-app
       text: Application Source Repository
+    - url: https://github.com/shpwrck/prometheus-example-app
+      text: Prometheus Example Source Repository
