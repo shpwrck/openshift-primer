@@ -18,6 +18,9 @@ Learn how to work with container images using internal OpenShift image registrie
 * **Configure Applications with Secrets and ConfigMaps**: +
 Use Kubernetes-native resources to securely manage application configuration, environment variables, and sensitive data without hardcoding values.
 
+* **Track Metrics and Logging of User Workloads**: +
+Explore observability tools available in OpenShift to view pod-level logs, inspect metrics, and monitor application health using the built-in dashboard and command-line utilities.
+
 * **Scale Applications with Horizontal Pod Autoscalers**: +
 Configure and observe autoscaling behavior based on CPU utilization or custom metrics to meet changing demand automatically.
 
@@ -26,8 +29,5 @@ Leverage OpenShift’s built-in debugging capabilities—such as remote shell ac
 
 * **Understand the Different Workload Options for Applications**: +
 Distinguish between Deployments, DaemonSets, StatefulSets, Jobs, and CronJobs, and know when to use each based on workload behavior and lifecycle needs.
-
-* **Track Metrics and Logging of User Workloads**: +
-Explore observability tools available in OpenShift to view pod-level logs, inspect metrics, and monitor application health using the built-in dashboard and command-line utilities.
 
 xref:00-day-one-agenda.adoc[Jump to Day One]
