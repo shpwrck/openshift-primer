@@ -16,7 +16,7 @@ content:
   contentOnly: "false"
   image: ghcr.io/rhpds/showroom-content:prod
   imagePullPolicy: IfNotPresent
-  repoUrl: https://github.com/shpwrck/workshop-primer.git 
+  repoUrl: https://github.com/shpwrck/openshift-primer.git 
   repoRef: main
   antoraPlaybook: default-site.yml
   resources:
