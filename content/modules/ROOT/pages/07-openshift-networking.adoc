@@ -22,7 +22,7 @@ This is a very *high-level* view. Each bullet point could in fact be expanded in
 Services provide a single fully qualified domain name (FQDN) and a single IP on which a set of workloads can all be addressed. This design makes accessing services predictable and reliable.
 
 The FQDN that is associated with any service will follow a common format: +
-`SERVICE_NAME.SERVICE_NAMESPACE.cluster.local`
+`SERVICE_NAME.SERVICE_NAMESPACE.svc.cluster.local`
 
 [NOTE]
 ====
