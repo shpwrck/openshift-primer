@@ -3,3 +3,4 @@
 https://workshop.k8socp.com[Workshop Link]
 
 https://raw.githubusercontent.com/shpwrck/openshift-primer/refs/heads/main/build/assembler/modules/openshift-primer.pdf[PDF Download]
+^Generated with git-hooks
