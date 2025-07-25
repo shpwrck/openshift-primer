@@ -1,0 +1,61 @@
+name: Test PDF Build
+
+on:
+  pull_request:
+    paths:
+      - 'content/**'
+      - 'default-pdf.yml'
+      - 'assembler.yml'
+  workflow_dispatch:  # Allow manual testing
+
+jobs:
+  test-build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        
+    - name: Set up Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: '3.1'
+        bundler-cache: true
+        
+    - name: Install Node.js dependencies
+      run: |
+        npm install -g @antora/cli@3.1.7 @antora/site-generator@3.1.7
+        npm install -g @antora/pdf-extension
+        
+    - name: Install Ruby dependencies
+      run: |
+        gem install bundler
+        bundle config set --local path 'vendor/bundle'
+        bundle install --jobs 4 --retry 3
+        
+    - name: Build PDF with Antora
+      run: |
+        echo "Building PDF documentation..."
+        bundle exec antora --stacktrace default-pdf.yml || antora --stacktrace default-pdf.yml
+        
+    - name: Verify PDF was created
+      run: |
+        pdf_file=$(find ./www -name "*.pdf" -type f | head -1)
+        if [ -z "$pdf_file" ]; then
+          echo "❌ No PDF file found!"
+          exit 1
+        fi
+        echo "✅ PDF successfully created: $pdf_file"
+        ls -la "$pdf_file"
+        
+    - name: Upload PDF artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-pdf-build
+        path: ./www/**/*.pdf
+        retention-days: 7 

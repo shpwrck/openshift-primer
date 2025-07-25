@@ -1,0 +1,111 @@
+name: Build and Release PDF Documentation
+
+on:
+  push:
+    tags:
+      - 'v*'  # Trigger on version tags like v1.0.0
+  workflow_dispatch:  # Allow manual triggering
+    inputs:
+      tag_name:
+        description: 'Tag name for the release (e.g., v1.0.0)'
+        required: true
+        default: 'v1.0.0'
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        
+    - name: Set up Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: '3.1'
+        bundler-cache: true
+        
+    - name: Install Node.js dependencies
+      run: |
+        npm install -g @antora/cli@3.1.7 @antora/site-generator@3.1.7
+        npm install -g @antora/pdf-extension
+        
+    - name: Install Ruby dependencies
+      run: |
+        gem install bundler
+        bundle config set --local path 'vendor/bundle'
+        bundle install --jobs 4 --retry 3
+        
+    - name: Build PDF with Antora
+      run: |
+        echo "Building PDF documentation..."
+        bundle exec antora --stacktrace default-pdf.yml || antora --stacktrace default-pdf.yml
+        
+    - name: Find generated PDF
+      id: find_pdf
+      run: |
+        # Find the generated PDF file
+        pdf_file=$(find ./www -name "*.pdf" -type f | head -1)
+        if [ -z "$pdf_file" ]; then
+          echo "No PDF file found!"
+          exit 1
+        fi
+        echo "pdf_path=$pdf_file" >> $GITHUB_OUTPUT
+        echo "pdf_name=$(basename $pdf_file)" >> $GITHUB_OUTPUT
+        echo "Found PDF: $pdf_file"
+        
+    - name: Determine tag name
+      id: tag_name
+      run: |
+        if [ "${{ github.event_name }}" = "push" ]; then
+          # Extract tag from ref (refs/tags/v1.0.0 -> v1.0.0)
+          tag_name=${GITHUB_REF#refs/tags/}
+        else
+          # Use manual input
+          tag_name=${{ github.event.inputs.tag_name }}
+        fi
+        echo "tag_name=$tag_name" >> $GITHUB_OUTPUT
+        echo "Using tag: $tag_name"
+        
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.tag_name.outputs.tag_name }}
+        release_name: ${{ steps.tag_name.outputs.tag_name }}
+        draft: false
+        prerelease: false
+        body: |
+          ## OpenShift SRE Documentation
+          
+          This release contains the PDF version of the OpenShift SRE documentation.
+          
+          ### Changes
+          - Generated from commit: ${{ github.sha }}
+          - Build date: ${{ github.run_id }}
+          
+          Download the PDF documentation below.
+          
+    - name: Upload PDF to Release
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ${{ steps.find_pdf.outputs.pdf_path }}
+        asset_name: openshift-sre-documentation-${{ steps.tag_name.outputs.tag_name }}.pdf
+        asset_content_type: application/pdf
+        
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: pdf-documentation
+        path: ${{ steps.find_pdf.outputs.pdf_path }}
+        retention-days: 30 
