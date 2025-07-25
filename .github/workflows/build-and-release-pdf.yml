@@ -83,9 +83,9 @@ jobs:
         draft: false
         prerelease: false
         body: |
-          ## OpenShift SRE Documentation
+          ## OpenShift Application Developer Documentation
           
-          This release contains the PDF version of the OpenShift SRE documentation.
+          This release contains the PDF version of the OpenShift Application Developer documentation.
           
           ### Changes
           - Generated from commit: ${{ github.sha }}
@@ -100,7 +100,7 @@ jobs:
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
         asset_path: ${{ steps.find_pdf.outputs.pdf_path }}
-        asset_name: openshift-sre-documentation-${{ steps.tag_name.outputs.tag_name }}.pdf
+        asset_name: openshift-application-developer-documentation-${{ steps.tag_name.outputs.tag_name }}.pdf
         asset_content_type: application/pdf
         
     - name: Upload build artifacts

@@ -1,5 +1,4 @@
-name: github pages
-
+name: Publish to GitHub Pages
 on:
   workflow_dispatch:
   push:
