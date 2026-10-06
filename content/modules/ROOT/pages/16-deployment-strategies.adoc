@@ -6,7 +6,7 @@ OpenShift gives you several strategies to control how updates roll out, from sim
 
 In this module, we’ll walk through:
 
-* The basic rollout strategies: `Recreate` and `Rolling`
+* The basic rollout strategies: `Recreate` and `RollingUpdate`
 * More advanced models: `Blue-Green`, `Canary`, and `A/B testing`
 * The critical role of health checks in making any of this work
 
@@ -24,7 +24,7 @@ By the end of this module, you’ll understand how to choose the right strategy 
 
 When you're deploying a new version of your application, OpenShift provides a couple of built-in deployment strategies to manage how pods are replaced.
 
-These two core strategies — **Recreate** and **Rolling** — serve very different purposes depending on the needs of your application.
+These two core strategies — **Recreate** and **RollingUpdate** — serve very different purposes depending on the needs of your application.
 
 === Recreate Strategy
 
@@ -55,7 +55,7 @@ spec:
 
 === Rolling Strategy
 
-The **Rolling** strategy is the default in OpenShift. It replaces old pods with new ones **gradually**, so there’s always at least part of your application available.
+The **RollingUpdate** strategy is the default for Deployments in OpenShift. It replaces old pods with new ones **gradually**, so there’s always at least part of your application available.
 
 OpenShift spins up a few new pods, waits for them to become ready, and then terminates the old ones in batches.
 
@@ -71,8 +71,8 @@ You can customize how fast the rollout happens using `maxUnavailable` and `maxSu
 ----
 spec:
   strategy:
-    type: Rolling
-    rollingParams:
+    type: RollingUpdate
+    rollingUpdate:
       maxUnavailable: 25%
       maxSurge: 25%
 ----
@@ -84,7 +84,7 @@ This means:
 
 [NOTE]
 ====
-The Rolling strategy relies heavily on **readiness probes**. If a new pod never becomes ready, OpenShift will pause the deployment and report the issue — giving you time to fix things before bad code reaches users.
+The RollingUpdate strategy relies heavily on **readiness probes**. If a new pod never becomes ready, the rollout stalls instead of replacing more old pods, and after `progressDeadlineSeconds` (10 minutes by default) the Deployment reports a `ProgressDeadlineExceeded` condition — giving you time to fix things (or run `oc rollout undo`) before bad code reaches all users.
 ====
 
 == Blue-Green Deployment Strategy
@@ -133,7 +133,7 @@ selector:
   color: green
 ----
 
-Alternatively, if you're using **Routes**, you can assign the Route to the Green deployment instead of Blue, then roll back if needed.
+Alternatively, if you're using **Routes**, you can point the Route at the Green deployment's Service instead of Blue's, then roll back if needed.
 
 === When to Use It
 
@@ -248,7 +248,7 @@ Unlike canary deployments, which focus on safe progressive rollout, A/B is about
 
 There’s no built-in A/B testing primitive in Kubernetes or OpenShift, but you can implement it using tools like:
 
-* **OpenShift Routes** with custom middleware (e.g., HAProxy header-based routing)
+* **OpenShift Routes** with weights for a random traffic split (Routes cannot route on headers or cookies)
 * **OpenShift Service Mesh (Istio)** to direct traffic based on headers or cookies
 * **Argo Rollouts** with **analysis templates** that measure business metrics
 
@@ -265,16 +265,24 @@ For example, using Service Mesh:
 
 [source,yaml,role=execute]
 ----
-match:
-  - headers:
-      x-user-group:
-        exact: beta
-    route:
-      - destination:
-          host: my-app-v2
-  - route:
-      - destination:
-          host: my-app-v1
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: my-app
+spec:
+  hosts:
+    - my-app
+  http:
+    - match:
+        - headers:
+            x-user-group:
+              exact: beta
+      route:
+        - destination:
+            host: my-app-v2
+    - route:
+        - destination:
+            host: my-app-v1
 ----
 
 This sends beta users to version B and everyone else to version A.
@@ -372,7 +380,7 @@ livenessProbe:
 
 Startup probes are designed for applications that take a long time to initialize. They delay the start of liveness checks so the container has a chance to fully boot before being restarted prematurely.
 
-If a startup probe is defined, **liveness probes are disabled** until the startup probe succeeds once.
+If a startup probe is defined, **liveness and readiness probes are disabled** until the startup probe succeeds once.
 
 Example: Long boot time
 
@@ -436,7 +444,7 @@ Readiness and liveness probes are essential for reliable deployments, scaling, a
 
 == Knowledge Check
 
-* What are the key differences between the **Recreate** and **Rolling** deployment strategies?
+* What are the key differences between the **Recreate** and **RollingUpdate** deployment strategies?
 * Why are **readiness probes** critical for safe rolling deployments?
 * When would you consider using a **StatefulSet** over a standard Deployment?
 * What is a **blue-green deployment**, and how do you switch traffic between environments?

@@ -15,7 +15,7 @@ By the end of this module, you’ll know how to instrument your apps, access met
 
 == User Workload Monitoring
 
-OpenShift includes a built-in monitoring stack powered by **Prometheus**, **Alertmanager**, and **Grafana**. This stack collects platform-level metrics — like node health, etcd performance, and API server activity — and stores them in a highly available fashion.
+OpenShift includes a built-in monitoring stack powered by **Prometheus**, **Thanos Querier**, and **Alertmanager**, with dashboards built into the web console. This stack collects platform-level metrics — like node health, etcd performance, and API server activity — and stores them in a highly available fashion.
 
 By default, this stack is focused on monitoring **OpenShift itself**. But what about your own apps?
 
@@ -29,13 +29,13 @@ It gives you access to:
 
 * A dedicated Prometheus instance for user-defined workloads
 * A ServiceMonitor or PodMonitor interface to tell Prometheus what to scrape
-* The ability to create alerts and visualize metrics using Grafana or the OpenShift web console
+* The ability to create alerts and visualize metrics in the OpenShift web console (or in a separately installed Grafana)
 
 === How to Enable It
 
-User workload monitoring is disabled by default. You can enable it by modifying the `cluster-monitoring-config` ConfigMap:
+User workload monitoring is disabled by default. You can enable it by modifying the `cluster-monitoring-config` ConfigMap (create it in the `openshift-monitoring` namespace if it does not exist yet):
 
-[source,yaml,role=execute]
+[source,sh,role=execute]
 ----
 oc edit configmap cluster-monitoring-config -n openshift-monitoring
 ----
@@ -72,29 +72,30 @@ apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
   name: my-app-monitor
-  labels:
-    release: prometheus
+  namespace: my-project
 spec:
   selector:
     matchLabels:
       app: my-app
-  namespaceSelector:
-    matchNames:
-      - my-project
   endpoints:
     - port: metrics
       interval: 30s
 ----
 
-This tells Prometheus to scrape metrics from all pods labeled `app=my-app` in the `my-project` namespace, using the `metrics` port every 30 seconds.
+This tells Prometheus to find the services labeled `app=my-app` in the `my-project` namespace, and to scrape the pods behind them on the service port named `metrics` every 30 seconds.
+
+[NOTE]
+====
+For user workload monitoring, a `ServiceMonitor` or `PodMonitor` only selects targets in its own namespace, so create it in the same project as your application.
+====
 
 === Where to View Metrics
 
 Once metrics are flowing, you can query them using:
 
 * The **OpenShift web console** → *Observe → Metrics*
-* The **Prometheus UI** exposed via `oc -n openshift-user-workload-monitoring port-forward svc/prometheus-user-workload 9090`
-* A connected **Grafana instance** (if installed)
+* The **Thanos Querier API**, exposed by the `thanos-querier` route in the `openshift-monitoring` namespace (send your token as a bearer token; querying it directly requires the `cluster-monitoring-view` cluster role)
+* A connected **Grafana instance** (if installed separately)
 
 You can also use these metrics to power:
 
@@ -124,23 +125,23 @@ This is especially useful when:
 
 OpenShift's modern logging architecture is built around the **Vector log collector**, which gathers logs from all nodes and routes them to one or more backends, such as:
 
-* **Loki** — a horizontally-scalable log store designed for Kubernetes
-* **Elasticsearch** — a traditional full-text log indexing engine
-* (Optional) External log stores — S3, Splunk, Kafka, etc.
+* **Loki** (`LokiStack`) — a horizontally-scalable log store designed for Kubernetes, and the log store managed by OpenShift Logging
+* (Optional) External log stores — Elasticsearch, S3, Splunk, Kafka, etc.
 
 These logs can be accessed directly through:
 
 * The **OpenShift Console** → *Observe → Logs*
-* The **Grafana Loki UI**, if exposed
+* **Grafana**, if installed and connected to Loki
 
 === Enabling Logging for Workloads
 
 To collect logs from application namespaces, follow these steps:
 
-1. Install the **OpenShift Logging Operator** via **Operators → OperatorHub**
+1. Install the **Red Hat OpenShift Logging Operator** via **Operators → OperatorHub**
 2. Install the **Loki Operator** (required if using Loki as your log store)
+3. Install the **Cluster Observability Operator** (provides the *Observe → Logs* page in the console)
 
-Then, deploy a `LokiStack` instance:
+Then, deploy a `LokiStack` instance. It needs an object storage secret (`logging-loki-s3` here) and a storage class from your cluster:
 
 [source,yaml,role=execute]
 ----
@@ -153,43 +154,83 @@ spec:
   size: 1x.extra-small
   storage:
     schemas:
-      - version: v12
-        effectiveDate: "2022-06-01"
+      - version: v13
+        effectiveDate: "2024-10-01"
     secret:
       name: logging-loki-s3
-    type: s3
+      type: s3
+  storageClassName: "STORAGE_CLASS"
   tenants:
     mode: openshift-logging
+----
+
+Next, create a service account for the collector and allow it to collect application logs and write them to the LokiStack:
+
+[source,sh,role=execute]
+----
+oc create sa collector -n openshift-logging
+oc adm policy add-cluster-role-to-user logging-collector-logs-writer -z collector -n openshift-logging
+oc adm policy add-cluster-role-to-user collect-application-logs -z collector -n openshift-logging
 ----
 
 Finally, configure log forwarding using a `ClusterLogForwarder` resource:
 
 [source,yaml,role=execute]
 ----
-apiVersion: logging.openshift.io/v1
+apiVersion: observability.openshift.io/v1
 kind: ClusterLogForwarder
 metadata:
-  name: instance
+  name: collector
   namespace: openshift-logging
 spec:
+  serviceAccount:
+    name: collector
   inputs:
-    - name: application-logs
+    - name: my-app-logs
+      type: application
       application:
-        namespaces: ["my-project"]
+        includes:
+          - namespace: my-project
   outputs:
-    - name: default
-      type: loki
-      url: http://logging-loki-gateway.openshift-logging.svc:8080
+    - name: default-lokistack
+      type: lokiStack
+      lokiStack:
+        authentication:
+          token:
+            from: serviceAccount
+        target:
+          name: logging-loki
+          namespace: openshift-logging
+      tls:
+        ca:
+          key: service-ca.crt
+          configMapName: openshift-service-ca.crt
   pipelines:
-    - inputRefs: [application-logs]
-      outputRefs: [default]
+    - name: my-app-logstore
+      inputRefs: [my-app-logs]
+      outputRefs: [default-lokistack]
 ----
 
 This setup tells Vector to collect logs from the `my-project` namespace and forward them to your LokiStack instance.
 
+To make the logs visible under *Observe → Logs*, enable the logging console plugin provided by the Cluster Observability Operator:
+
+[source,yaml,role=execute]
+----
+apiVersion: observability.openshift.io/v1alpha1
+kind: UIPlugin
+metadata:
+  name: logging
+spec:
+  type: Logging
+  logging:
+    lokiStack:
+      name: logging-loki
+----
+
 [NOTE]
 ====
-Log collection is namespace-aware. You must explicitly include namespaces you want to monitor in the `ClusterLogForwarder`. This allows separation between platform logs and developer logs.
+Log collection is namespace-aware. The built-in `application` input collects logs from every application namespace, while a custom input like `my-app-logs` above limits collection to the namespaces you list. This allows separation between platform logs and developer logs.
 ====
 
 === Accessing Logs
@@ -200,7 +241,7 @@ You can access logs directly from the **OpenShift Console**:
 * Filter by project, pod, container, or log level
 * Search or tail logs in real time without shell access
 
-If desired, you can also expose and use the **Grafana Loki UI** for advanced log querying.
+If desired, you can also connect **Grafana** to Loki for advanced log querying.
 
 === Best Practices
 
@@ -239,14 +280,14 @@ To install the operator:
 
 1. Go to **Operators → OperatorHub** in the OpenShift Console
 2. Search for *Network Observability Operator*
-3. Install it into the `netobserv` namespace
-4. Accept the default configuration (or customize as needed)
+3. Install it into the recommended `openshift-netobserv-operator` namespace
+4. Create a `FlowCollector` resource, accepting the default configuration (or customizing as needed). Its components run in the `netobserv` namespace
 
 Once installed, navigate to **Observe → Network Traffic** to explore live and historical traffic flows.
 
 [NOTE]
 ====
-The Network Observability Operator is powerful for debugging network issues, enforcing policies, and gaining visibility into production traffic patterns. It complements Prometheus-based monitoring by showing *how data moves*, not just how applications behave.
+The Network Observability Operator is powerful for debugging network issues, verifying that network policies behave as intended, and gaining visibility into production traffic patterns. It complements Prometheus-based monitoring by showing *how data moves*, not just how applications behave.
 ====
 
 == Optional: Distributed Tracing
@@ -264,7 +305,7 @@ If you’re already using **Grafana and Loki**, Tempo integrates seamlessly and 
 To get started:
 
 1. Install the **Tempo Operator** from OperatorHub
-2. Deploy a `TempoStack` resource
+2. Deploy a `TempoMonolithic` resource (for development) or a `TempoStack` resource (for production, backed by object storage)
 3. Configure your applications to send traces using OpenTelemetry-compatible SDKs or exporters
 
 Example:
@@ -272,17 +313,17 @@ Example:
 [source,yaml,role=execute]
 ----
 apiVersion: tempo.grafana.com/v1alpha1
-kind: TempoStack
+kind: TempoMonolithic
 metadata:
   name: tempo
-  namespace: openshift-monitoring
+  namespace: my-project
 spec:
   storage:
-    type: memory
-  replicas: 1
+    traces:
+      backend: memory
 ----
 
-This creates a minimal, in-cluster Tempo setup suitable for development and testing.
+This creates a minimal, in-cluster Tempo setup suitable for development and testing. Traces are kept in memory, so they are lost when the pod restarts.
 
 === Instrumenting Applications
 
@@ -308,7 +349,7 @@ Distributed tracing adds critical visibility into the flow of requests across se
 == References
 
 * https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/monitoring/configuring-user-workload-monitoring[Monitoring]
-* https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/logging/logging-6-2[Logging]
+* https://docs.redhat.com/en/documentation/red_hat_openshift_logging/6.2/html/about_openshift_logging/quick-start[Logging]
 * https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/network_observability/network-observability-operator-monitoring[Network Observability]
 * https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/distributed_tracing/distributed-tracing-architecture#distr-tracing-architecture[Tracing]
 

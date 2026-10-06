@@ -4,7 +4,7 @@
 * xref:02-whatisopenshift.adoc[What is OpenShift?]
 * xref:03-ocp-vs-k8s.adoc[OpenShift vs Kubernetes]
 * xref:04-cli-and-console.adoc[Command Line Interface and Web Console]
-* xref:05-projects[Projects]
+* xref:05-projects.adoc[Projects]
 * xref:06-application-deployment.adoc[Application Deployment]
 * xref:07-openshift-networking.adoc[Networking]
 
@@ -20,8 +20,8 @@ By the end of day one, participants will be equipped with foundational knowledge
 
 * **Manage Projects and Resources**: Understand how to create and manage OpenShift *projects*, and how to organize, monitor, and maintain the resources within them.
 
-* **Create Applications from Source Code**: Use tools like Project Shipwright to securely build container images from source code inside a containerized environment—without requiring a Docker daemon.
+* **Create Applications from Source Code**: Build container images locally with Podman, then use OpenShift's native builds (`oc new-build`, `oc new-app`) and Helm to build and package applications inside the cluster—without requiring a local Docker daemon.
 
-* **Expose Applications with Customized Routing**: Learn how to create and configure OpenShift *routes* to expose services externally, including options for custom domains and TLS settings.
+* **Expose Applications with Customized Routing**: Learn how to create and configure OpenShift *routes* to expose services externally, including path-based and weighted routing, TLS termination, and annotation-based settings.
 
 xref:10-day-two-agenda.adoc[Jump to Day Two]

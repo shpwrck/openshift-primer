@@ -24,7 +24,7 @@ preferences: {}
 users:
 - name: developer/api-crc-testing:6443
   user:
-    token: sha256~6FxIo-2otdT1-GWq_3XeRxbYtmeN5LJRFeMILQkYfAs
+    token: # Redacted
 - name: kubeadmin/api-crc-testing:6443
   user:
-    token: sha256~LrlOU2OTEVZI7ln7Rh6ZrAvYXCpn8aowmSBmHmZAK_8
+    token: # Redacted

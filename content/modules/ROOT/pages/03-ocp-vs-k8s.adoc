@@ -13,38 +13,38 @@ The following resources are some of the main resources OpenShift adds to Kuberne
 
 Kubernetes and OpenShift are designed to allow for multiple tenants. Taking a cue from the Linux kernel, both platforms provide isolated "namespaces" for a tenant's resources. Resources deployed in one namespace generally do not impact the behavior of resources deployed in another.
 
-The differences between how OpenShift implements these isolated spaces with "Projects" differs from the Kubernetes implementation only slightly.
+The way OpenShift implements these isolated spaces with "Projects" differs from the Kubernetes implementation only slightly.
 Run the following command to compare the "default" `project` to the "default" `namespace`:
 
 .Linux
 [source,sh,role=execute]
 ----
 # Compare the YAML definition of each resource
-diff <(oc get ns test -o yaml) <(oc get project test -o yaml)
+diff <(oc get ns default -o yaml) <(oc get project default -o yaml)
 ----
 
 .Windows
 [source,sh,role=execute]
 ----
 # Create a file with the YAML definition of each resource and compare them
-oc get namespace test -o yaml > %Temp%\test-namespace.yaml
-oc get project test -o yaml > %Temp%\test-project.yaml
-FC %Temp%\test-namespace.yaml %Temp%\test-project.yaml
+oc get namespace default -o yaml > %Temp%\default-namespace.yaml
+oc get project default -o yaml > %Temp%\default-project.yaml
+FC %Temp%\default-namespace.yaml %Temp%\default-project.yaml
 ----
 
-OpenShift has been engineered to make the difference in these resources virtually transparent. When a namespace is created, OpenShift will create a corresponding project and vice-versa.
+OpenShift has been engineered to make the difference in these resources virtually transparent. A `project` is not stored separately: it is a view of a `namespace` that the OpenShift API server provides. Every namespace you have access to shows up as a project, and creating a project creates a namespace.
 
-The only perceivable difference between these resources lies within a `project`'s ability to leverage OpenShift templates. OpenShift allows a privileged user to modify what is created when a user attempts to create a new project. https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html-single/building_applications/index#configuring-project-creation[link]
+The most perceivable differences lie in how the two are created and listed:
 
-Run the following to commands to observe the difference:
+* Regular users can request a new `project` (through a `ProjectRequest`, which is what `oc new-project` does), but by default they cannot create a `namespace` directly.
+* `oc get projects` only lists the projects you have access to, while listing namespaces requires cluster-wide permissions.
+* Because project requests are processed by the platform, OpenShift allows a privileged user to modify what is created when a user requests a new project by using a project template. https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html-single/building_applications/index#configuring-project-creation[link]
+
+Run the following commands to observe the difference:
 
 .Linux
 [source,sh,role=execute]
 ----
-# Create a new project template and install it.
-oc adm create-bootstrap-project-template -o yaml | oc apply -n openshift-config -f -
-oc patch project.config.openshift.io/cluster --type=json -p '[{"op":"add","path":"/spec/projectRequestTemplate","value":{"name":"project-request"}}]'
-
 # Confirm that a new project has an additional rolebinding (admin) while the new namespace does not.
 oc new-project example-project && oc create ns example-ns
 diff <(oc get rolebindings -n example-project -o name) <(oc get rolebindings -n example-ns -o name)
@@ -53,16 +53,41 @@ diff <(oc get rolebindings -n example-project -o name) <(oc get rolebindings -n 
 .Windows
 [source,sh,role=execute]
 ----
-# Create a new project template and install it.
-oc adm create-bootstrap-project-template -o yaml | oc apply -n openshift-config -f -
-oc patch project.config.openshift.io/cluster --type=json -p '[{"op":"add","path":"/spec/projectRequestTemplate","value":{"name":"project-request"}}]'
-
 # Confirm that a new project has an additional rolebinding (admin) while the new namespace does not.
 oc new-project example-project && oc create ns example-ns
 oc get rolebindings -n example-project -o name > %Temp%\rolebindings-project.yaml
 oc get rolebindings -n example-ns -o name > %Temp%\rolebindings-namespace.yaml
 FC %Temp%\rolebindings-project.yaml %Temp%\rolebindings-namespace.yaml
 ----
+
+That `admin` rolebinding comes from the default project template. To change what every new project receives, export the default template, edit it, and install it as a custom template:
+
+.Linux
+[source,sh,role=execute]
+----
+# Export the default project template to a file
+oc adm create-bootstrap-project-template -o yaml > /tmp/project-template.yaml
+
+# Edit the file and add your own resources (for example a ResourceQuota or LimitRange) to the "objects" list, then install it
+oc apply -n openshift-config -f /tmp/project-template.yaml
+oc patch project.config.openshift.io/cluster --type=json -p '[{"op":"add","path":"/spec/projectRequestTemplate","value":{"name":"project-request"}}]'
+----
+
+.Windows
+[source,sh,role=execute]
+----
+# Export the default project template to a file
+oc adm create-bootstrap-project-template -o yaml > %Temp%\project-template.yaml
+
+# Edit the file and add your own resources (for example a ResourceQuota or LimitRange) to the "objects" list, then install it
+oc apply -n openshift-config -f %Temp%\project-template.yaml
+oc patch project.config.openshift.io/cluster --type=json -p "[{\"op\":\"add\",\"path\":\"/spec/projectRequestTemplate\",\"value\":{\"name\":\"project-request\"}}]"
+----
+
+[NOTE]
+====
+After the patch, it can take a few minutes for the OpenShift API server to pick up the new template. The template only applies to projects requested after that point, and never to namespaces created with `oc create ns`.
+====
 
 [NOTE]
 ====
@@ -89,7 +114,7 @@ image::console-customizations.png[]
 
 [NOTE]
 ====
-State tuned! +
+Stay tuned! +
 We will explore the Web Console in greater detail in the next module.
 ====
 
@@ -97,14 +122,14 @@ We will explore the Web Console in greater detail in the next module.
 
 Routes are a specific implementation for the generic Kubernetes concern of external application exposure. Because applications hosted in Kubernetes often require a mechanism to serve them on extended/public/global networks, Kubernetes provides a "pluggable" system for this with resources like `ingress` and `gateways`. 
 
-Historically `routes` provided a simple and stable implementation before the ingress API became generally available. Today, they are the "batteries include" solution, but do not preclude the use of other ingress options.
+Historically `routes` provided a simple and stable implementation before the ingress API became generally available. Today, they are the "batteries included" solution, but do not preclude the use of other ingress options.
 
 [NOTE]
 ====
-OpenShift will create Route objects for Ingresses that do not specify an `IngressClass`. This simplifies the adoption of generic Kubernetes configurations, but requires:
+OpenShift will create Route objects for Ingresses that do not specify an ingress class, or that specify a class handled by OpenShift's router (such as `openshift-default`). This simplifies the adoption of generic Kubernetes configurations, but keep in mind:
 
-* a `host` that aligns with the templated `*.apps."CLUSTER_NAME"."BASE_DOMAIN"`
-* annotations to configure TLS settings like:
+* each Ingress rule needs a `host`, and DNS for that host must resolve to the router (hosts under `*.apps."CLUSTER_NAME"."BASE_DOMAIN"` already do)
+* a certificate referenced in the Ingress `spec.tls` section produces an edge-terminated route, and annotations configure other TLS settings like:
 ** `route.openshift.io/termination` or
 ** `route.openshift.io/destination-ca-certificate-secret`
 
@@ -123,11 +148,11 @@ The topic of Container Network Interfaces is extensive, and what follows is *not
 
 ====
 
-There are many CNI's available for Kubernetes consumption. `Antrea`,`Calico`,`Cilium`,`NSX-T`,`OVN` are just a few that all implement the same specification, but in wildly different ways (eBPF, BGP, RDMA, Hardware Offloading...). The standard for OpenShift since version 4.12 is OVN. There are many specific features that OVN provides, but for the purposes of this workshop, only it's relationship with `kube-proxy` will be discussed. 
+There are many CNIs available for Kubernetes consumption. `Antrea`,`Calico`,`Cilium`,`NSX-T`,`OVN` are just a few that all implement the same specification, but in wildly different ways (eBPF, BGP, RDMA, Hardware Offloading...). The standard for OpenShift since version 4.12 is OVN. There are many specific features that OVN provides, but for the purposes of this workshop, only its relationship with `kube-proxy` will be discussed. 
 
 *OVN Kubernetes DOES NOT leverage `kube-proxy`!*
 
-In light of this, troubleshooting network connectivity should follow the procedures outlined https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/networking/ovn-kubernetes-network-plugin#ovn-kubernetes-troubleshooting-sources[here] in. Standard `iptables` commands are effectively replaced with `ovn-nbctl` and `ovn-sbctl` from within the `ovnkube-node` workload.
+In light of this, troubleshooting network connectivity should follow the procedures outlined https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/networking/ovn-kubernetes-network-plugin#ovn-kubernetes-troubleshooting-sources[here]. Standard `iptables` commands are effectively replaced with `ovn-nbctl` and `ovn-sbctl` from within the `ovnkube-node` workload.
 
 You can confirm this by running:
 
@@ -147,7 +172,7 @@ oc get network.operator.openshift.io cluster -o yaml | FINDSTR deployKubeProxy
 
 == Security
 
-OpenShift takes `security` very seriously. The entire platform, from hardware to runtime, leverages comprehensive security tooling and practices such as encryption, selinux, seccomp, image signatures, system immutability, etc. Kubernetes can be made secure without additional tooling, but OpenShift enforces rather strict configurations by default. 
+OpenShift takes `security` very seriously. The entire platform, from hardware to runtime, leverages comprehensive security tooling and practices such as encryption, SELinux, seccomp, image signatures, system immutability, etc. Kubernetes can be made secure without additional tooling, but OpenShift enforces rather strict configurations by default. 
 
 .The two primary sources of frustrations for users migrating from Kubernetes to OpenShift are:
 * https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html-single/authentication_and_authorization/index#managing-pod-security-policies[Security Context Constraints]
@@ -155,10 +180,10 @@ OpenShift takes `security` very seriously. The entire platform, from hardware to
 ** Enforced at admission on the pod level  
 * https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html-single/authentication_and_authorization/index#understanding-and-managing-pod-security-admission[Pod Security Admission]
 ** Prevent elevated privileges broadly at the namespace level
-** Enforced at admission on the workload level
+** Enforced at admission on the pod level (the `warn` and `audit` modes also flag non-compliant workload resources such as Deployments)
 ** The Pod Security Standards are defined https://kubernetes.io/docs/concepts/security/pod-security-standards/[here]
 
-The correct approach to resolving issues of either type is to reconfigure the failing workload in order to comply with the default policy. There are several circumstances that might prevent this approach however. When the workload can not be configured in a compliant way:
+The correct approach to resolving issues of either type is to reconfigure the failing workload in order to comply with the default policy. There are several circumstances that might prevent this approach however. When the workload cannot be configured in a compliant way:
 
 * An appropriate scc must be added to the account associated with the running workload
 
@@ -185,8 +210,11 @@ metadata:
     pod-security.kubernetes.io/audit-version: latest
     pod-security.kubernetes.io/warn: restricted
     pod-security.kubernetes.io/warn-version: latest
-    # Add and configure the two lines below #
-    pod-security.kubernetes.io/enforce: restricted
+    # Add and configure the lines below #
+    # Stop OpenShift from synchronizing the pod security labels for this namespace
+    security.openshift.io/scc.podSecurityLabelSync: "false"
+    # Choose a less strict level: "baseline" or "privileged"
+    pod-security.kubernetes.io/enforce: privileged
     pod-security.kubernetes.io/enforce-version: latest
   name: test
 ...
@@ -195,7 +223,7 @@ spec: {}
 
 [NOTE]
 ====
-In the previous namespace sample the three annotations are a security configuration associated with SCC's as well. + 
+In the previous namespace sample the three annotations are a security configuration associated with SCCs as well. + 
 These control SELinuxContext, Supplemental Groups, and Runnable UserIDs for workloads in a given namespace.
 ====
 
@@ -220,7 +248,7 @@ These control SELinuxContext, Supplemental Groups, and Runnable UserIDs for work
 [source,sh,role=execute]
 ----
 oc new-project kube-example #Fails
-oc create ns kube-example #Succeeds
+oc create ns kube-example #Succeeds (if you have permission to create namespaces, e.g. as a cluster-admin)
 ----
 
 ====
@@ -247,11 +275,12 @@ oc exec -n openshift-ingress deploy/router-default -- /bin/sh -c "ps -ef | grep 
 [%collapsible]
 ====
 
-You could create a new project template as was shown above, but add an annotation that specifies the proper range:
+You could create a new project template as was shown above, but add annotations that specify the proper ranges for user IDs and group IDs:
 
-[source,sh,role=execute]
+[source,yaml,role=execute]
 ----
 openshift.io/sa.scc.uid-range: XXXXX/10000
+openshift.io/sa.scc.supplemental-groups: XXXXX/10000
 ----
 
 ====
