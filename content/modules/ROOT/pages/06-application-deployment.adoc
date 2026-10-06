@@ -66,7 +66,7 @@ Grab your client of choice `podman` or `docker` (links below) and try the follow
 .Build, tag, and label the image
 [source,sh,role=execute]
 ----
-# From the source repository root (src/cart is the build context)
+# From the source repository root (src/cart is the build context; docker requires it explicitly)
 podman build --file src/cart/Dockerfile --tag cart:0.0.1 --label build-0.0.1 src/cart
 ----
 
