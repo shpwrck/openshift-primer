@@ -15,7 +15,7 @@ These tools help you build applications that are elastic, responsive, and effici
 
 If you want to scale your application intelligently, you first need visibility into how it’s performing. Metrics provide that visibility — they tell you how much CPU or memory your app is using, how many requests it's handling, and whether it's under stress or sitting idle.
 
-In OpenShift, metrics are collected using **Prometheus** and exposed through the Kubernetes **Resource Metrics API**. These metrics are provided **out of the box** as part of the OpenShift platform — no additional setup is required for basic autoscaling and resource monitoring.
+In OpenShift, CPU and memory usage metrics are collected by **Metrics Server** and exposed through the Kubernetes **Resource Metrics API**. These metrics are provided **out of the box** as part of the OpenShift platform — no additional setup is required for basic autoscaling and resource monitoring.
 
 This API powers features like the **Horizontal Pod Autoscaler** (HPA), which can automatically adjust the number of running pods based on usage.
 
@@ -40,7 +40,7 @@ To focus on a specific workload, you can:
 
 [NOTE]
 ====
-For metrics-based scaling to work, metrics collection must be enabled in your cluster. In OpenShift, this is handled by the **Cluster Monitoring Operator**, which deploys and manages Prometheus and related services — and it's included out of the box.
+For metrics-based scaling to work, metrics collection must be enabled in your cluster. In OpenShift, this is handled by the **Cluster Monitoring Operator**, which deploys and manages Metrics Server, Prometheus, and related services — and it's included out of the box.
 ====
 
 == Resource Limits and Resource Requests
@@ -71,8 +71,8 @@ This container is guaranteed 256Mi of memory and 250 millicores of CPU, but won�
 
 OpenShift uses these values to assign **Quality of Service (QoS)** classes to pods:
 
-* `Guaranteed` — You specify matching requests and limits for every resource.
-* `Burstable` — You set both request and limit, but they don’t match.
+* `Guaranteed` — Every container specifies CPU and memory limits, with requests equal to those limits.
+* `Burstable` — At least one container sets a CPU or memory request or limit, but the pod doesn’t meet the `Guaranteed` criteria (for example, requests are lower than limits, or only requests are set).
 * `BestEffort` — You don’t set any request or limit.
 
 QoS affects how pods are treated during resource pressure. `Guaranteed` pods are the last to be evicted; `BestEffort` are the first to go.
@@ -85,13 +85,13 @@ These values directly impact where and how your pods are scheduled:
 
 * **Pod scheduled but throttled** — If your pod is placed on a node and it hits its **CPU limit**, the container runtime will throttle it. This won’t kill the pod, but it may result in degraded performance.
 
-* **OOMKilled** — If your container exceeds its **memory limit**, the kernel may terminate it. This usually shows up as a `OOMKilled` status in the pod’s lifecycle.
+* **OOMKilled** — If your container exceeds its **memory limit**, the kernel may terminate it. This usually shows up as an `OOMKilled` status in the pod’s lifecycle.
 
 These behaviors are designed to protect the node and other workloads, but they can cause confusion if you’re not tracking resource usage closely.
 
 [NOTE]
 ====
-If your project defines a `LimitRange`, OpenShift will automatically apply default requests and limits to pods that don’t specify them. This helps ensure consistent scheduling and resource fairness — even if you forget to add them manually.
+If your project defines a `LimitRange` with `default` and `defaultRequest` values for containers, OpenShift will automatically apply those requests and limits to containers that don’t specify them. This helps ensure consistent scheduling and resource fairness — even if you forget to add them manually.
 ====
 
 == Horizontal Pod Autoscalers
@@ -168,8 +168,8 @@ These settings help smooth out noisy metrics and ensure the autoscaler behaves i
 ====
 If you omit the `behavior` section, the HPA uses conservative defaults:
 
-* **Scale up**: No limit on how fast the workload can grow, but the controller scales gradually to avoid overshooting.
-* **Scale down**: The HPA waits 5 minutes of stable usage before reducing the number of pods, and only scales down one pod at a time.
+* **Scale up**: No stabilization window. Every 15 seconds, the HPA can add whichever is larger: 100% of the current pods (doubling) or 4 pods.
+* **Scale down**: The HPA uses a 5-minute stabilization window before reducing the number of pods, and can then remove up to 100% of the current pods every 15 seconds (never going below `minReplicas`).
 
 For most production workloads, tuning `behavior` is a good idea — especially for highly dynamic traffic or cost-sensitive environments.
 ====
@@ -188,7 +188,7 @@ This is where **custom metrics** come in. OpenShift supports Horizontal Pod Auto
 
 === What is KEDA?
 
-KEDA (Kubernetes Event-driven Autoscaling) is an open source project that integrates with the Kubernetes control plane to provide autoscaling based on custom or external metrics. OpenShift includes KEDA as part of its serverless and advanced autoscaling support.
+KEDA (Kubernetes Event-driven Autoscaling) is an open source project that integrates with the Kubernetes control plane to provide autoscaling based on custom or external metrics. OpenShift provides KEDA through the optional **Custom Metrics Autoscaler Operator**, which you can install from OperatorHub.
 
 KEDA installs its own controller that listens for `ScaledObject` resources and drives HPA behavior based on metrics from Prometheus, Kafka, Redis, AWS CloudWatch, and more.
 
@@ -216,11 +216,11 @@ Assuming you’ve already installed KEDA and **User Workload Monitoring** is ena
 6. **A ScaledObject**  
    Finally, you define a `ScaledObject`, which links your deployment to a custom metric, defines the threshold, and instructs KEDA how to scale based on it.
 
-Once all of these are in place, KEDA handles the rest — scraping the metric from Prometheus, calculating when to scale, and adjusting the number of pods using a built-in HPA. There is a full tutorial https://www.redhat.com/en/blog/custom-metrics-autoscaler-on-openshift[here].
+Once all of these are in place, KEDA handles the rest — querying the metric from Prometheus, calculating when to scale, and adjusting the number of pods using a built-in HPA. There is a full tutorial https://www.redhat.com/en/blog/custom-metrics-autoscaler-on-openshift[here].
 
 === Example: Scaling Based on HTTP Request Rate
 
-Let’s say you have an application exposing a Prometheus metric called `http_requests_total`. This metric is scraped by Prometheus and made available through the KEDA Prometheus scaler. You want to scale your workload when it receives more than **5 requests per 2 minutes**.
+Let’s say you have an application exposing a Prometheus metric called `http_requests_total`. This metric is scraped by Prometheus and made available through the KEDA Prometheus scaler. You want to scale your workload so that each pod handles about **5 requests per second** (averaged over the last 2 minutes).
 
 First, ensure your app exposes the metric in Prometheus format, e.g.:
 
@@ -228,6 +228,36 @@ First, ensure your app exposes the metric in Prometheus format, e.g.:
 ----
 # Exposed by the app at /metrics
 http_requests_total{route="/api"} 12452
+----
+
+If you don't have such an application yet, you can deploy the https://github.com/rhobs/prometheus-example-app[Prometheus example app], which exposes `http_requests_total`, together with a `PodMonitor` that tells Prometheus to scrape it:
+
+[source,yaml,role=execute]
+----
+include::example$prometheus-example-app.yaml[]
+----
+
+Prometheus labels metrics scraped through a `PodMonitor` with `job="NAMESPACE/PODMONITOR_NAME"`, which is the `job` label the query below selects.
+
+Next, create the service account that KEDA will use, a token secret for it, and permission to query metrics in the namespace:
+
+[source,sh,role=execute]
+----
+oc create serviceaccount autoscaler -n default
+
+cat <<EOF | oc apply -f -
+apiVersion: v1
+kind: Secret
+type: kubernetes.io/service-account-token
+metadata:
+  name: autoscaler-token
+  namespace: default
+  annotations:
+    kubernetes.io/service-account.name: autoscaler
+EOF
+
+oc create role thanos-metrics-reader -n default --verb=get,list,watch --resource=pods,pods.metrics.k8s.io
+oc create rolebinding thanos-metrics-reader -n default --role=thanos-metrics-reader --serviceaccount=default:autoscaler
 ----
 
 Then configure a ScaledObject resource that uses the Prometheus trigger:
@@ -262,7 +292,7 @@ Tools like `oc describe hpa`, Prometheus dashboards, and reviewing KEDA logs are
 
 == References
 
-* https://docs.redhat.com/en/documentation/openshift_container_platform/4.8/html/building_applications/quotas#quotas-requests-vs-limits_quotas-setting-per-project[Requests and Limits]
+* https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/building_applications/quotas#quotas-requests-vs-limits_quotas-setting-per-project[Requests and Limits]
 * https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/nodes/working-with-pods#nodes-pods-autoscaling[Autoscaler]
 * https://keda.sh/[Keda]
 * https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/nodes/automatically-scaling-pods-with-the-custom-metrics-autoscaler-operator#nodes-cma-autoscaling-custom[Custom Metrics Autoscaler]

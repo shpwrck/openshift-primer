@@ -1,6 +1,6 @@
 = Command Line Interface and Web Console
 
-Now that we've dispensed with the basics, it's time to start practical hands-on exploration of OpenShift. As we've already discussed and demonstrated, the two major methods for a user to interact with an OpenShift environment is through the `Web Console` or the `oc` cli.
+Now that we've dispensed with the basics, it's time to start practical hands-on exploration of OpenShift. As we've already discussed and demonstrated, the two major methods for a user to interact with an OpenShift environment are through the `Web Console` or the `oc` cli.
 
 == Setup
 
@@ -33,13 +33,17 @@ Or you can download with using well defined URL endpoints:
 .Local Cluster
 [source,sh,role=execute]
 ----
+# ARCHITECTURE: amd64, arm64, ppc64le, or s390x
+# OPERATING_SYSTEM: linux, mac (amd64 and arm64 only), or windows (amd64 only)
 curl -L https://downloads-openshift-console.apps."CLUSTER_NAME"."BASE_DOMAIN"/"ARCHITECTURE"/"OPERATING_SYSTEM"/oc.tar | tar -xvf -
 ----
 
 .Public Artifact Store
 [source,sh,role=execute]
 ----
-curl -L https://mirror.openshift.com/pub/openshift-v4/"ARCHITECTURE"/clients/ocp/stable/openshift-client-linux-"RELEASE_VERSION".tar.gz | tar -zxvf - 
+# ARCHITECTURE: x86_64, aarch64, ppc64le, or s390x
+# RELEASE_VERSION: your cluster version (for example 4.18.10), or "stable" for the latest release
+curl -L https://mirror.openshift.com/pub/openshift-v4/"ARCHITECTURE"/clients/ocp/"RELEASE_VERSION"/openshift-client-linux.tar.gz | tar -zxvf - 
 ----
 
 == Locating Resources
@@ -98,7 +102,7 @@ image::form-view.png[]
 . `Toggles/Checkboxes`: Hide irrelevant config behind enabled/disabled markers
 . `Radio Selection`: Select from a predefined static set
 
-For more in depth customization there are several tools built into embedded resource editor
+For more in depth customization there are several tools built into the embedded resource editor
 
 .Editor View
 image::editor-view.png[]
@@ -108,21 +112,21 @@ image::editor-view.png[]
 
 === Command Line Client
 
-Unfortunately the cli does not provide as many user experience benefits. Creating and modifying resources is nearly identical to upstream Kubernetes in these are the most relevant commands:
+Unfortunately the cli does not provide as many user experience benefits. Creating and modifying resources is nearly identical to upstream Kubernetes and these are the most relevant commands:
 
 .Create / Apply (submit files previously created/modified in your IDE of choice)
 [source,sh,role=execute]
 ----
-oc create/apply -f {$FILENAME} 
+oc create/apply -f "FILENAME"
 ----
 
-.Edit (modify existing cluster resources using the default host IDE)
+.Edit (modify existing cluster resources using your default editor, set with KUBE_EDITOR or EDITOR)
 [source,sh,role=execute]
 ----
 oc edit "RESOURCE_TYPE" "RESOURCE_NAME" 
 ----
 
-.Patch (modify existing cluster resources, but without opening an IDE)
+.Patch (modify existing cluster resources, but without opening an editor)
 [source,sh,role=execute]
 ----
 oc patch "RESOURCE_TYPE" "RESOURCE_NAME" (-p|--patch-file|--type|...)
@@ -149,7 +153,7 @@ Our final concern involves operations across multiple tenants and multiple clust
 
 === Command Line Client
 
-Unlike the console, the cli provides several user mechanisms to quickly switch between projects and clusters. In order to understand how the CLI provides this functionality, let's breakdown the terms `Context` and `Cluster`.
+Unlike the console, the cli provides several user mechanisms to quickly switch between projects and clusters. In order to understand how the CLI provides this functionality, let's break down the terms `Context` and `Cluster`.
 
 .A `Context` is a combination of three things:
 * User: Can be a service account or a user provided by an external identity provider
@@ -176,8 +180,8 @@ oc config get-clusters ...
 [source,sh,role=execute]
 ----
 oc config set-credentials ...
-oc config set-contexts ...
-oc config set-clusters ...
+oc config set-context ...
+oc config set-cluster ...
 ----
 
 .Use [Context] (Changes "current-context" to "CONTEXT")
@@ -188,8 +192,8 @@ oc config use-context "CONTEXT"
 
 [NOTE]
 ====
-There is an asymmetry between the "get" and "set" methods for users. +
-This design implies that the KUBECONFIG, and by extension the cluster, doesn't natively handle users. 
+There is an asymmetry between the "get" and "set" methods for users (`get-users` vs `set-credentials`). +
+This is because the `users` entries in a KUBECONFIG only hold credentials (tokens, certificates, etc.). The cluster determines which user those credentials belong to when they are presented.
 ====
 
 == References

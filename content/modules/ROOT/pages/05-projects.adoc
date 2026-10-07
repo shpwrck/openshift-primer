@@ -2,7 +2,7 @@
 
 Before we start deploying workloads, there is one last major concern to be addressed: How to be a responsible tenant in an OpenShift environment? The https://en.wikipedia.org/wiki/Tragedy_of_the_commons['Tragedy of the Commons'] shows us that without protections OpenShift resources would be depleted and the platform would likely become unusable.
 
-Although the specifics of how to govern tenants can vary from engineer to engineer or from organization to organization, there several standard tools and practices used to maintain a hospitable multi-tenant OpenShift environment.  
+Although the specifics of how to govern tenants can vary from engineer to engineer or from organization to organization, there are several standard tools and practices used to maintain a hospitable multi-tenant OpenShift environment.  
 
 .This section introduces those tools:
 * `Service Accounts` - Provide identities and attribution
@@ -17,7 +17,7 @@ Service accounts are special user identities automatically created for workloads
 .These are the default Service Accounts:
 * `default`: Used by pods without a specified service account.
 * `builder`: Used by build configurations.
-* `deployer`: Used by deployment configurations.
+* `deployer`: Used by deployment configurations (DeploymentConfigs are deprecated in favor of Deployments).
 
 Don't believe me? You can view them with:
 
@@ -26,7 +26,7 @@ Don't believe me? You can view them with:
 oc get serviceaccounts
 ----
 
-Service accounts work in combination with users to provide authentication to the platform. Whereas user authentication comes from an identity provider that is not part of kubernetes, the identity of a service account is provided entirely by the platform itself. The credentials that a service account uses to prove its identity are https://jwt.io/introduction[JSON Web Tokens(JWT)]. 
+Service accounts work in combination with users to provide authentication to the platform. Whereas user authentication comes from an identity provider that is not part of Kubernetes, the identity of a service account is provided entirely by the platform itself. The credentials that a service account uses to prove its identity are https://jwt.io/introduction[JSON Web Tokens(JWT)]. 
 
 OpenShift will automatically create and mount these JWTs when a service account is attached to a workload, but you can get a token in a few other ways:
 
@@ -39,13 +39,13 @@ oc create token "SERVICE_ACCOUNT_NAME" -n "NAMESPACE"
 .From a secret (Linux)
 [source,sh,role=execute]
 ----
+# Run this in the project that contains the service account
 cat <<EOF | oc apply -f -
 apiVersion: v1
 kind: Secret
 type: kubernetes.io/service-account-token
 metadata:
   name: "SECRET_NAME"
-  namespace: default
   annotations:
     kubernetes.io/service-account.name: "SERVICE_ACCOUNT_NAME"
 EOF
@@ -55,6 +55,7 @@ oc extract secret/"SECRET_NAME" --to=- --keys=token
 .From a secret (Windows)
 [source,sh,role=execute]
 ----
+REM Run this in the project that contains the service account
 echo {"apiVersion":"v1","kind":"Secret","metadata":{"name":"SECRET_NAME","annotations":{"kubernetes.io/service-account.name":"SERVICE_ACCOUNT_NAME"}},"type":"kubernetes.io/service-account-token"} | oc apply -f -
 oc extract secret/"SECRET_NAME" --to=- --keys=token
 ----
@@ -108,19 +109,20 @@ With human and machine identities established, access control can be applied. Th
 
 [NOTE]
 ====
-For this workshop, `ClusterRoles` and `ClusterRoleBindings` are nothing more than the cluster scoped versions of `Roles` and `Rolebindings`. 
+For this workshop, `ClusterRoles` and `ClusterRoleBindings` are nothing more than the cluster scoped versions of `Roles` and `RoleBindings`. 
 A `ClusterRole` can give the same permissions cluster wide, and a `ClusterRoleBinding` can be associated with any identity cluster-wide.
 ClusterRoles do have a slight https://kubernetes.io/docs/reference/access-authn-authz/rbac/#aggregated-clusterroles[difference in implementation] that we will ignore for now.
 ====
 
 To create a role based access strategy, you'll need to be able to determine three things:
+
 . Which actions do I need from all available actions
 . Which API resources do I need from all available resources
 . Which API groups do the resources I need belong to
 
 === Role Actions
 
-Thankfully this list is static, and directly correlates with HTTP verbs:
+Thankfully the standard list is short, and directly correlates with HTTP verbs:
 
 [frame=all,grid=all]
 |===
@@ -142,6 +144,11 @@ Thankfully this list is static, and directly correlates with HTTP verbs:
 | delete, deletecollection
 
 |===
+
+[NOTE]
+====
+A few special verbs exist outside of this table, such as `use` (which grants access to a Security Context Constraint), `bind`, `escalate`, and `impersonate`.
+====
 
 === Role Resources and Groups
 
@@ -169,7 +176,7 @@ Having verbs, resources, and groups, we can now start making roles and rolebindi
 [source,sh,role=execute]
 ----
 oc create role "ROLE_NAME" \
-  --verbs "VERB,VERB,VERB" \
+  --verb "VERB,VERB,VERB" \
   --resource "RESOURCE"."GROUP"
 ----
 
@@ -178,7 +185,7 @@ oc create role "ROLE_NAME" \
 ----
 oc create rolebinding "ROLEBINDING_NAME" \
   --role "ROLE_NAME" \
-  (--user "USER" | --serviceaccount "SERVICE_ACCOUNT")
+  (--user "USER" | --serviceaccount "NAMESPACE":"SERVICE_ACCOUNT")
 ----
 
 [TIP]
@@ -188,7 +195,7 @@ You can "bind" as many `ROLES` as you want to an identity, so don't be afraid to
 
 == ResourceQuotas and LimitRanges
 
-The last level of platform protection is targeting resource exhaustion directly. Even though OpenShift can scale to incredible sizes, their may be other constraints limiting the total amount of hardware that can be afforded to the platform (budget, logistics, etc). `ResourceQuotas` and `LimitRanges` work in tandem to guarantee that the maximum number of resources used with a given project is not exceeded, and the consumption of those resources is spread evenly among workloads.
+The last level of platform protection is targeting resource exhaustion directly. Even though OpenShift can scale to incredible sizes, there may be other constraints limiting the total amount of hardware that can be afforded to the platform (budget, logistics, etc). `ResourceQuotas` and `LimitRanges` work in tandem to guarantee that the maximum number of resources used within a given project is not exceeded, and that no single workload can consume a disproportionate share of those resources.
 
 === ResourceQuotas
 
@@ -198,7 +205,12 @@ Here is a sample `ResourceQuota`::
 include::example$resourcequota.yaml[]
 ----
 
-This would mean that the total number of pods in the "default" namespace can not exceed 4, and that a total of 2 cores and 2 Gibibytes is all the system resources that these pods can make use of.
+This would mean that the total number of pods in the "default" namespace cannot exceed 4, that together these pods can request at most 1 core and 1 Gibibyte, and that their combined limits cannot exceed 2 cores and 2 Gibibytes.
+
+[NOTE]
+====
+Once a quota covers CPU or memory, every new pod in the namespace must specify requests and limits for those resources (or receive defaults from a `LimitRange`). Otherwise the pod is rejected.
+====
 
 === LimitRanges
 
@@ -226,17 +238,18 @@ This would force all pods in this namespace to fall between .250 by 256Mi and .7
 .Hint
 [%collapsible]
 ====
-Since all workloads leverage a service account, you can find the token using your linux filesystem skills. + 
+Since all workloads leverage a service account, you can find the token using your Linux filesystem skills. + 
 `oc exec -it "POD_NAME" -- sh` will get you into a pod's context.
 ====
 
-*How long do service account tokens last?*
+*How long do service account tokens created with `oc create token` last?*
 
 .Hint
 [%collapsible]
 ====
 You can decode one of your own JWTs or identify the difference in the example above. +
-Once you know (`exp` - `iat`), you can convert to the correct unit of time.
+Once you know (`exp` - `iat`), you can convert to the correct unit of time. +
+Tokens stored in a `kubernetes.io/service-account-token` secret are the exception: they do not expire.
 ====
 
 *If a given role is duplicated across several namespaces, how can you reduce the number of roles that need to be managed?*
@@ -255,15 +268,6 @@ To remove duplicate `Roles` you simply have to make a `ClusterRole` and change t
 [%collapsible]
 ====
 The solution was introduced in the project section of "OpenShift vs Kubernetes".
-====
-
-*CPU and Memory resources are measured with specific units in OpenShift, what are they?*
-
-.Answer
-[%collapsible]
-====
-`CPU` can be measured with "fractional count" (i.e. 1.0, 2.5, 1.001), or by "millicpu/millicores".
-`Memory` can be measured with base ten units (kilobyte, megabyte, gigabyte...) or base two units (kibibyte, mebibyte, gibibyte...)
 ====
 
 *CPU and Memory resources are measured with specific units in OpenShift, what are they?*

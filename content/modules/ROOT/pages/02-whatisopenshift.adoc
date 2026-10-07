@@ -2,7 +2,7 @@
 
 == OpenShift is an *application platform*
 
-In simplest terms, OpenShift is a platform designed to help reliably run applications. It can be deployed on premise, in the cloud, directly on hardware, and also on various hypervisors. While the original focus of the platform was to run applications in linux containers it has since evolved to also run windows application containers and applications hosted by an array of virtualization providers.
+In simplest terms, OpenShift is a platform designed to help reliably run applications. It can be deployed on premise, in the cloud, directly on hardware, and also on various hypervisors. While the original focus of the platform was to run applications in Linux containers it has since evolved to also run Windows application containers and applications hosted by an array of virtualization providers.
 
 [TIP]
 ====
@@ -19,8 +19,8 @@ Like the rest of the Red Hat portfolio, OpenShift is open source. While most use
 ====
 Being open source has the added advantage of being able to run the platform without a dedicated subscription:
 
-* You can run a local version of OpenShift in a local VM with https://github.com/crc-org/crc[`Code Ready Containers(CRC)`].
-* You can run a distributed version of OpenShift on dedicated hardware or virtual machines using https://github.com/okd-project/okd[`OpenShift Kubernetes Distribution(OKD)`]
+* You can run a local version of OpenShift in a local VM with https://github.com/crc-org/crc[`Red Hat OpenShift Local (formerly CodeReady Containers, CRC)`]. It only requires a free Red Hat account.
+* You can run a distributed version of OpenShift on dedicated hardware or virtual machines using https://github.com/okd-project/okd[`OKD`], the community distribution of Kubernetes that powers OpenShift.
 ====
 
 == OpenShift is an open source application platform *built with Kubernetes*
@@ -33,7 +33,7 @@ Just remember to **PURSUE**...::
 * **R**eliability - Kubernetes is self-healing, limiting the effects of service disruption.
 * **S**calability - All of the components that comprise Kubernetes are designed with massive scale in mind.
 * **U**niversality - Kubernetes has a large body of supporting documents from both the maintainers and the community.
-* **E**xtensibility - The computing landscape is constantly shifting, and kubernetes was built to accommodate new runtimes, modes of operation, paradigms, etc.
+* **E**xtensibility - The computing landscape is constantly shifting, and Kubernetes was built to accommodate new runtimes, modes of operation, paradigms, etc.
 
 === Kubernetes Basics
 
@@ -68,7 +68,7 @@ The final addition to our definition is "enterprise grade". OpenShift has been v
 * https://access.redhat.com/compliance/disa-stig[DISA STIG - Defense Information Systems Agency Security Technical Implementation Guides]
 * https://access.redhat.com/compliance/cis-benchmarks[CIS - Center For Internet Security Benchmarks]
 
-OpenShift takes much of the guess work out of securing a kubernetes platform with best practice configuration embedded directly into the infrastructure, platform, and runtimes.
+OpenShift takes much of the guesswork out of securing a Kubernetes platform with best practice configuration embedded directly into the infrastructure, platform, and runtimes.
 
 == References
 * https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/architecture/architecture[OpenShift Architecture Documentation]

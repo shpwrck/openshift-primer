@@ -123,7 +123,7 @@ oc logs POD_NAME
 
 If your workload has multiple containers, include `-c CONTAINER_NAME`.
 
-If the pod crashed before writing logs, try:
+If the container has crashed and restarted, the current logs may be empty. View the logs from the previous container instance with:
 
 [source,sh,role=execute]
 ----
@@ -139,7 +139,7 @@ If the pod starts but doesn't behave as expected, you can inspect it interactive
 oc rsh POD_NAME
 ----
 
-Or use a clean debug container with OpenShift tooling:
+Or start a debug copy of the pod with a shell:
 
 [source,sh,role=execute]
 ----
@@ -148,7 +148,7 @@ oc debug pod/POD_NAME
 
 More details on this method are in the *Debug Pod* section below.
 
-This gives you root access to a clone of the environment — great for exploring filesystem layout, testing DNS resolution, or running shell commands.
+This gives you a shell in a copy of the pod — great for exploring filesystem layout, testing DNS resolution, or running shell commands.
 
 === 6. Examine Configuration
 
@@ -187,16 +187,16 @@ The `oc debug` command is one of the most versatile ways to troubleshoot pod beh
 
 When you run `oc debug pod/POD_NAME`, OpenShift:
 
-* Creates a **temporary pod** based on the original
-* Replaces the container image with a known-good one (usually a Red Hat UBI image)
+* Creates a **temporary pod** based on the original, using the same image
+* Replaces the container's command with a shell (`/bin/sh`) and disables its probes, so the debug pod keeps running
 * Mounts the same volumes, secrets, and configs
-* Gives you a shell with root privileges
+* Runs with the same security context as the original pod (add `--as-root` to run as root, if your permissions allow it)
 
 This is ideal when:
 
 * The container exits before you can run `oc rsh`
 * You need to inspect mounted files, config, or secret data
-* You want a clean environment with troubleshooting tools installed
+* You want to try different startup commands, or run with a different image that has troubleshooting tools installed (`--image`)
 
 Example:
 
@@ -221,7 +221,7 @@ You can also change the image used for debugging:
 oc debug pod/POD_NAME --image=registry.access.redhat.com/ubi8/ubi
 ----
 
-Or override the container’s entrypoint:
+Or run a specific command instead of the default shell:
 
 [source,sh,role=execute]
 ----
@@ -238,16 +238,16 @@ Unlike `oc debug`, ephemeral containers:
 * Run side-by-side with existing containers
 * Are not restarted automatically and don’t affect the pod's lifecycle
 
-To add one, use `kubectl` (ephemeral containers are not yet supported directly by `oc`):
+To add one, use `kubectl` (it is included in the OpenShift client archive from mirror.openshift.com):
 
 [source,sh,role=execute]
 ----
-kubectl debug --target=CONTAINER_NAME pod/POD_NAME
+kubectl debug -it pod/POD_NAME --image=registry.access.redhat.com/ubi9/ubi --target=CONTAINER_NAME
 ----
 
-This attaches a troubleshooting container (based on UBI by default) to the running pod and targets a specific container (useful for matching volumes or namespaces).
+This attaches a troubleshooting container based on the image you choose (`--image` is required) to the running pod. `--target` shares the process namespace of a specific container, so you can see its processes.
 
-You can verify the container was added by describing the pod:
+You can verify the container was added by viewing the pod's YAML:
 
 [source,sh,role=execute]
 ----
@@ -410,11 +410,11 @@ If the files are present but inaccessible, the problem might be with UID/GID mis
 * Make sure the volume contents are owned by the correct UID
 * Check if the container is running as non-root
 
-You can also inspect the SCC (Security Context Constraint) in use:
+You can also inspect the SCC (Security Context Constraint) that admitted the pod and its security settings:
 
 [source,sh,role=execute]
 ----
-oc get pod POD_NAME -o yaml | grep -i security
+oc get pod POD_NAME -o yaml | grep -i -e "openshift.io/scc" -e "securityContext" -A3
 ----
 
 ==== 5. Look at the StorageClass
@@ -442,7 +442,7 @@ Storage issues can block pods silently. If your app won’t start and no logs ar
 
 [IMPORTANT]
 ====
-Don't forget that Red Hat Support is just an email away!
+Don't forget that Red Hat Support is just a https://access.redhat.com/support[support case] away!
 ====
 
 == References

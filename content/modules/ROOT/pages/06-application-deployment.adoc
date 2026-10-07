@@ -10,7 +10,7 @@ It's also available https://github.com/shpwrck/retail-store-sample-app[here].
 
 == Container Basics
 
-Images are where our application journey begins. Without them, and the standards built around them, Kubernetes and OpenShift would be much different technologies if they even existed at all. In simplest terms, an image is a repeatable recipe for software wrapped into a well defined binary format. The format is has proven to be particularly flexible. Today there are images for several architectures (`arm`,`x86`,`mips`,`power8`,`mainframe`,...), several operating system families (`Windows` and `Linux`), and several operating systems (`rhel`,`ubuntu`,`suse`,...).
+Images are where our application journey begins. Without them, and the standards built around them, Kubernetes and OpenShift would be much different technologies if they even existed at all. In simplest terms, an image is a repeatable recipe for software wrapped into a well defined binary format. The format has proven to be particularly flexible. Today there are images for several architectures (`arm`,`x86`,`mips`,`power8`,`mainframe`,...), several operating system families (`Windows` and `Linux`), and several operating systems (`rhel`,`ubuntu`,`suse`,...).
 
 .Let's dig in to an example Dockerfile:
 [source,dockerfile,role=execute]
@@ -20,20 +20,20 @@ include::example$example.dockerfile[]
 
 Each (non-empty) line begins with a token in all caps that signifies a specific instruction when building:
 
-* `FROM`: Are we starting from `SCRATCH` or are we building **FROM** another image?
+* `FROM`: Are we starting from `scratch` or are we building **FROM** another image?
 * `WORKDIR`: In our new image, which **WORK**ing **DIR**ectory will be the context for further actions?
-* `COPY`: What files do we need to **COPY** into our new images new working directory?
+* `COPY`: What files do we need to **COPY** into our new image's working directory?
 * `RUN`: What do we need to **RUN** in our image to achieve the correct configuration?
 * `EXPOSE`: What ports are being **EXPOSE**d by our process?
 * `USER`: What **USER** are we running the process as?
 * `CMD`: What **C**o**M**man**D** are we running when this image is instantiated?
 
-With the exception of `FROM` (beginning of file) and `CMD|ENTRYPOINT` (end of file), the specification allows near complete freedom on the order and amount of instructions. There are https://docs.docker.com/build/building/best-practices/[best practices] however. Apart from successfully executing an app, readability of the container file, the size of your container file, and the size of the resulting image should be highly prioritized. 
+Apart from `FROM`, which begins each build stage (only `ARG` may come before it), the specification allows near complete freedom on the order and amount of instructions. `CMD` and `ENTRYPOINT` are conventionally placed at the end of the file, and if either appears more than once only the last one takes effect. There are https://docs.docker.com/build/building/best-practices/[best practices] however. Apart from successfully executing an app, readability of the container file, the size of your container file, and the size of the resulting image should be highly prioritized. 
 
 [TIP]
 ====
-Starting off `FROM` the right image can help keeps images small and secure. +
-Red Hat provides a family of based images called https://catalog.redhat.com/software/base-images["Universal Base Images"] to provide a solid foundation for your applications.
+Starting off `FROM` the right image can help keep images small and secure. +
+Red Hat provides a family of base images called https://catalog.redhat.com/software/base-images["Universal Base Images"] to provide a solid foundation for your applications.
 ====
 
 For the most part the use cases for these instructions are self-evident, but there are several that overlap and often cause confusion.
@@ -46,13 +46,13 @@ For the most part the use cases for these instructions are self-evident, but the
 | Both run commands, but at runtime and on build respectively
 
 | CMD vs ENTRYPOINT
-| Both the runtime process, but CMD is overridable while ENTRYPOINT is not
+| Both define the runtime process, but CMD is replaced by any arguments passed to `run`, while ENTRYPOINT must be overridden explicitly (`--entrypoint`). In Kubernetes, a container's `command` overrides ENTRYPOINT and `args` overrides CMD
 
 | ADD vs COPY
 | Both add files, but ADD should only be used for remote/packaged files
 
 | ARG vs ENV
-| Both control parameters, but at runtime and on build respectively
+| Both control parameters, but ARG is only available on build while ENV is also available at runtime
 
 |===
 
@@ -63,11 +63,11 @@ Grab your client of choice `podman` or `docker` (links below) and try the follow
 .Podman Image Commands
 [%collapsible]
 ====
-.Build,tag, and label the image
+.Build, tag, and label the image
 [source,sh,role=execute]
 ----
-# From the source repository root
-podman build --file src/cart/Dockerfile --tag cart:0.0.1 --label build-0.0.1
+# From the source repository root (src/cart is the build context; docker requires it explicitly)
+podman build --file src/cart/Dockerfile --tag cart:0.0.1 --label build-0.0.1 src/cart
 ----
 
 .Find the built image
@@ -102,7 +102,7 @@ curl -I localhost:8080/carts/1
 [source,sh,role=execute]
 ----
 # From anywhere
-podman kill cart-0.0.1
+podman rm --force cart-0.0.1
 podman rmi localhost/cart:0.0.1
 ----
 ====
@@ -119,10 +119,12 @@ Assuming that the architecture of your own build environment is the same as your
 .Build Once
 [source,sh,role=execute]
 ----
+# "oc create build" does not create the output ImageStream, so create it first
+oc create imagestream cart
 oc create build cart --strategy Docker --source-git=https://github.com/shpwrck/retail-store-sample-app --context-dir=./src/cart --dockerfile-path=. --to-image-stream cart:0.0.1
 ----
 
-If you run the same command again, it will fail (by design). We need a generative way to produce builds repeatedly. That is where `BuildConfigs` come in. +
+If you run the `oc create build` command again, it will fail (by design). We need a generative way to produce builds repeatedly. That is where `BuildConfigs` come in. +
 {empty} +
 
 .OC Image Commands
@@ -151,7 +153,7 @@ oc get is cart -o yaml
 [NOTE]
 ====
 We manually created the builds with the `oc start-build ...` command, but there's another option. We can trigger builds when webhooks or code changes are received. +
-https://docs.redhat.com/en/documentation/openshift_container_platform/4.8/html/cicd/builds#builds-triggers_triggering-builds-build-hooks[Look here for more]
+https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/builds_using_buildconfig/triggering-builds-build-hooks#builds-triggers_triggering-builds-build-hooks[Look here for more]
 ====
 
 === Builds with Shipwright
@@ -173,13 +175,14 @@ or
 [source,sh,role=execute]
 ----
 # This command borrows the image from our previous builds
-oc create deployment test-cart-deployment --image image-registry.openshift-image-registry.svc:5000/default/test-cart:latest
+# Replace "NAMESPACE" with your current project (oc project -q)
+oc create deployment test-cart-deployment --image image-registry.openshift-image-registry.svc:5000/"NAMESPACE"/test-cart:latest
 ----
 
 These two commands do greatly oversimplify the capabilities that OpenShift has in regards to running workloads. +
 
 .Take for instance:
-* The many types of workloads `Deployments`, `StatefulSets`, `Daemonsets`, `Jobs`, `CronJobs`
+* The many types of workloads `Deployments`, `StatefulSets`, `DaemonSets`, `Jobs`, `CronJobs`
 * The `1,000+` keys and values that each resource has
 * The `100+` Red Hat operator-based solutions that augment workload behaviors
 
@@ -187,7 +190,7 @@ It's important to approach this domain incrementally. So for now we will leave w
 
 == Helm
 
-Helm is the last remaining tool in our Application's MVP. Helm allows us to take what we've done up to this point. (Images, Builds, Deployments,...) and package it up just like we packaged our application itself. This affords us the same benefits that containerization did: reliable and repeatable results.
+Helm is the last remaining tool in our Application's MVP. Helm allows us to take what we've done up to this point (Images, Builds, Deployments,...) and package it up just like we packaged our application itself. This affords us the same benefits that containerization did: reliable and repeatable results.
 
 The process for taking what we have and packaging it with helm is more involved than our previous commands. But it can still be done in less than a few lines of execution.
 {empty} +
@@ -195,6 +198,14 @@ The process for taking what we have and packaging it with helm is more involved 
 .Basic Helm Steps
 [%collapsible]
 ====
+.Create a new project for the chart
+[source,sh,role=execute]
+----
+# In a new project, "new-app" renders every resource the chart needs (including the
+# ImageStream for the base image), and none of them already exist outside of Helm
+oc new-project cart-helm
+----
+
 .Initialize a helm chart
 [source,sh,role=execute]
 ----
@@ -209,7 +220,7 @@ cd cart
 rm -r templates/*
 ----
 
-.Push the generate resources into the "templates" directory
+.Push the generated resources into the "templates" directory
 [source,sh,role=execute]
 ----
 # Add "-o yaml" to our previous "new-app" command and dump it to a file
@@ -277,10 +288,10 @@ By specifying directories,files, and file-globs in this way, you can keep sensit
 .Answer
 [%collapsible]
 ====
-Each RHEL Operating System (7,8,9) have "ubi","ubi-init","ubi-micro", and "ubi-minimal".
+Each supported RHEL release (8, 9, and 10) has "ubi", "ubi-init", "ubi-micro", and "ubi-minimal" images. (UBI 7, which has reached end of life, never had a "ubi-micro" image.) The catalog also includes language runtime images built on UBI, such as Python, Node.js, and OpenJDK.
 ====
 
-*Helm is supported both from the CLI and the Web Console, can you create a helm chart from the Console?*
+*Helm is supported both from the CLI and the Web Console, can you install a helm chart (create a helm release) from the Console?*
 
 .Answer
 [%collapsible]

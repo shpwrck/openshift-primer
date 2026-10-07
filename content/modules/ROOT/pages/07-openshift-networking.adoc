@@ -10,10 +10,10 @@ When a client accesses an OpenShift-hosted application, the traffic follows this
 image::network-path-diagram.png[]
 
 . Client sends a request to `*.apps.cluster.base.domain`
-. The is resolved to either a Load Balancer or a Virtual IP (VIP)
+. The hostname is resolved to either a Load Balancer or a Virtual IP (VIP)
 . The traffic is sent to a node based on the load balancing algorithm
 . The node receives the traffic and translates it to the router's network namespace
-. The router forwards the traffic to the correct node given the service state and definition 
+. The router forwards the traffic directly to one of the application's pods, using the endpoints of the service referenced by the route
 
 This is a very *high-level* view. Each bullet point could in fact be expanded into several additional bullet points with a much longer list of relevant technologies. Fortunately for developers, most networking is transparent to developer operations and is more likely to be managed by platform administrators. Developer concerns are normally limited to `Services` and `Routes` definitions. 
 
@@ -54,7 +54,7 @@ In many situations (particularly in cloud based environments) these four are suf
 
 == Routes
 
-`Routes` are the "batteries included" solution OpenShift provides that allows for more sophisticated external network exposure. OpenShift routes are effectively a specific implementation of the upstream https://kubernetes.io/docs/concepts/services-networking/ingress/[Kubernetes Ingress]. The underlying technology that makes this entire routing solution work is https://www.haproxy.com/documentation/haproxy-configuration-manual/latest/[HAProxy].
+`Routes` are the "batteries included" solution OpenShift provides that allows for more sophisticated external network exposure. Routes predate and inspired the upstream https://kubernetes.io/docs/concepts/services-networking/ingress/[Kubernetes Ingress] API, and solve the same problem with additional features. OpenShift's router handles both Routes and Ingresses. The underlying technology that makes this entire routing solution work is https://www.haproxy.com/documentation/haproxy-configuration-manual/latest/[HAProxy].
 
 .Notice the output here:
 [source,sh,role=execute]
@@ -110,15 +110,18 @@ spec:
 ...
 ----
 
-You provide certificates directly in the route with plaintext, or let OpenShift manage them via the more advanced https://cert-manager.io/[cert-manager project].
+If an `edge` or `reencrypt` route does not specify a certificate, the router serves its default wildcard certificate for `*.apps."CLUSTER_NAME"."BASE_DOMAIN"`. Otherwise, you can provide PEM-encoded certificates directly in the route, or manage them with the more advanced https://cert-manager.io/[cert-manager project].
 
 [source,yaml,role=execute]
 ----
 ...
 spec:
   tls:
-    caCertificate: ...inline cacert...
     certificate: ...inline cert...
+    key: ...inline private key...
+    caCertificate: ...inline cacert...
+    # reencrypt only: CA used to validate the pod's certificate
+    destinationCACertificate: ...inline destination cacert...
 ----
 
 === Configuration via Annotations
@@ -148,7 +151,9 @@ You can apply annotations via `oc annotate` or include them in the route YAML:
 metadata:
   annotations:
     haproxy.router.openshift.io/timeout: 10s
-    haproxy.router.openshift.io/rate-limit-connections: "5"
+    # Enable rate limiting, then set the limit
+    haproxy.router.openshift.io/rate-limit-connections: "true"
+    haproxy.router.openshift.io/rate-limit-connections.concurrent-tcp: "5"
 ...
 ----
 
@@ -156,16 +161,16 @@ metadata:
 [source,sh,role=execute]
 ----
 # To add an annotation
-oc annotate route -n "NAMESPACE" "ANNOTATION_KEY"="ANNOTATION_VALUE"
+oc annotate route "ROUTE_NAME" -n "NAMESPACE" "ANNOTATION_KEY"="ANNOTATION_VALUE"
 # To remove an annotation
-oc annotate route -n "NAMESPACE" "ANNOTATION_KEY"-
+oc annotate route "ROUTE_NAME" -n "NAMESPACE" "ANNOTATION_KEY"-
 ----
 
 === Ingress Compatibility
 
-`Routes` are an ingress implementation and 100% compatible with standard Kubernetes. You could deploy all of the necessary components in any Kubernetes cluster using the https://github.com/openshift/router[github source]. Despite this however, `Routes` are not common outside of OpenShift configuration. The most common solution for Kubernetes networking is Ingress. 
+`Routes` are an OpenShift API, and the router that implements them is open source (https://github.com/openshift/router[github source]). Despite this however, `Routes` are not common outside of OpenShift configuration. The most common solution for Kubernetes networking is Ingress. 
 
-The routing implementation has a solution to this discrepancy. If you have not set the `ingressClassName` field to `openshift-default`, fear not! Ingresses will still be adopted by the routing controller if the `host` field matches a domain currently being monitored by the router. (`*.apps."CLUSTER_NAME"."BASE_DOMAIN"`)
+The routing implementation has a solution to this discrepancy. OpenShift automatically creates a managed `Route` for each rule of an `Ingress` that either does not specify an ingress class, or sets `ingressClassName` to a class handled by the router (such as `openshift-default`). Each rule needs a `host`, and DNS for that host must resolve to the router (hosts under `*.apps."CLUSTER_NAME"."BASE_DOMAIN"` already do). Ingresses that specify another ingress class are left to that class's controller.
 
 [NOTE]
 ====
@@ -189,10 +194,8 @@ Additional annotations for `Route` definition are available with this method::
 [%collapsible]
 ====
 .The two valid values are:
-* "None"
-* ""
-This will create what is called a https://kubernetes.io/docs/concepts/services-networking/service/#headless-services["Headless Service"]. +
-These services are helpful when a connection needs to be made to one or many specific pods.
+* "None": This will create what is called a https://kubernetes.io/docs/concepts/services-networking/service/#headless-services["Headless Service"]. These services are helpful when a connection needs to be made to one or many specific pods.
+* "" (empty): An IP address is allocated automatically, which is the same as omitting the field.
 ====
 
 *Can you create a route from an `oc` cli command?*

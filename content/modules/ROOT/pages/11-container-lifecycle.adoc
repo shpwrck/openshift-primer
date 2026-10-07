@@ -84,11 +84,11 @@ OpenShift provides tools like `oc mirror` and `oc adm release mirror` to help au
 In disconnected clusters, that local registry becomes critical. If it’s misconfigured or goes down, pods won’t start, and cluster upgrades can break. Make sure it’s reliable and backed up.
 ====
 
-And if you want to go one step further, cluster administrators can use a combination of `ImageContentSourcePolicy` (ICSP), `ImageDigestMirrorSet`, and `ImageTagMirrorSet` objects. These let you rewrite image references at the cluster level — so even core OpenShift components pull from your mirrored registries instead of the internet.
+And if you want to go one step further, cluster administrators can use `ImageDigestMirrorSet` and `ImageTagMirrorSet` objects (which replace the deprecated `ImageContentSourcePolicy`). These configure mirrors at the cluster level, so image pulls are transparently redirected to your mirrored registries instead of the internet — even for core OpenShift components. `ImageDigestMirrorSet` applies to images pulled by digest, and `ImageTagMirrorSet` applies to images pulled by tag.
 
 == Images on the Cluster
 
-Once an image is pulled, OpenShift doesn’t just forget about it. The platform tracks images using its internal registry, metadata, and built-in Kubernetes resources. This gives OpenShift powerful visibility and automation around how images are stored, updated, and referenced across the cluster.
+Images that are referenced directly by a workload are simply pulled and cached by the container runtime on each node. Images that are built in the cluster, pushed to the internal registry, or imported into an `ImageStream`, however, are tracked by OpenShift through its internal registry, metadata, and built-in resources. This gives OpenShift powerful visibility and automation around how those images are stored, updated, and referenced across the cluster.
 
 In this section, we’ll explore how OpenShift manages images that have already been brought into the cluster, including how it stores them, associates them with workloads, and keeps them up to date.
 
@@ -130,7 +130,9 @@ status:
     tag: latest
 ----
 
-In this example, the ImageStream is called `retail-cart`, and its `latest` tag points to an external image. Once this is set up, you can reference it in workloads like this `image: image-registry.openshift-image-registry.svc:5000/my-project/my-app@sha256:....` where the `sha256` comes from the ImageStream's tag status.
+In this example, the ImageStream is called `retail-cart`, and its `latest` tag points to an image that was built in the cluster and pushed to the internal registry. Once this is set up, you can reference it in workloads like this `image: image-registry.openshift-image-registry.svc:5000/default/retail-cart@sha256:....` where the `sha256` comes from the ImageStream's tag status.
+
+If you set `lookupPolicy.local` to `true`, workloads in the same namespace can also reference the ImageStream by its short name (for example `image: retail-cart:latest`), and OpenShift resolves it to the current image.
 
 Behind the scenes, OpenShift handles tracking and pulling the actual image so that your workload always uses the correct version.
 
@@ -138,7 +140,7 @@ Behind the scenes, OpenShift handles tracking and pulling the actual image so th
 ====
 .ImageStream Facts
 * ImageStreams can track images from many sources: external registries, the internal OpenShift registry, or even from builds running inside the cluster.
-* Deployments that have ImageStream triggers will get an annotation like `image.openshift.io/triggers`
+* Deployments can be redeployed automatically when an ImageStream tag changes by adding an `image.openshift.io/triggers` annotation (for example with `oc set triggers`)
 * ImageStreams are namespace scoped, but you can reference them from other namespaces as long as the service account has the right permissions
 ** `oc policy add-role-to-user system:image-puller system:serviceaccount:test:default --namespace=default` +
 would give the default service account in the test namespace access to the ImageStreams in the default namespace 
@@ -166,7 +168,7 @@ Here’s an example command:
 
 [source,sh,role=execute]
 ----
-oc adm prune images --keep-tag-revisions=3 --keep-younger-than=60m
+oc adm prune images --keep-tag-revisions=3 --keep-younger-than=60m --confirm
 ----
 
 This tells OpenShift to:
@@ -180,16 +182,16 @@ This tells OpenShift to:
 Pruning only affects images stored in the **internal** registry. If you'd like to know how images are cleared from nodes directly, look at https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/nodes/working-with-nodes#nodes-nodes-garbage-collection-images_nodes-nodes-configuring[garbage collection].
 ====
 
-You can also run pruning in dry-run mode to preview what would be deleted:
+Without the `--confirm` flag, the command runs in dry-run mode and only previews what would be deleted:
 
 [source,sh,role=execute]
 ----
-oc adm prune images --keep-tag-revisions=3 --keep-younger-than=60m --confirm=false
+oc adm prune images --keep-tag-revisions=3 --keep-younger-than=60m
 ----
 
 This is especially useful in production clusters where caution is critical.
 
-OpenShift includes an `ImagePruner` resource that allows you to schedule pruning as part of cluster operations.
+OpenShift includes an `ImagePruner` resource that allows you to schedule pruning as part of cluster operations. By default, it runs automatically once a day.
 
 This resource lets cluster administrators define pruning policies and run schedules directly within the cluster — no need for external cron jobs or scripts.
 
@@ -211,4 +213,4 @@ It’s a good idea to monitor registry usage and prune regularly — especially 
 * What does the `oc adm prune images` command do?
 * How does OpenShift decide which images to prune from the internal registry?
 * What role does the `ImagePruner` resource play in managing image lifecycle automation?
-* What are the uses and differences between `ImageContentSourcePolicy`, `ImageDigestMirrorSet`, and `ImageTagMirrorSet`?
+* What are the uses and differences between `ImageContentSourcePolicy` (deprecated), `ImageDigestMirrorSet`, and `ImageTagMirrorSet`?

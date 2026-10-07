@@ -144,6 +144,11 @@ immutable: false
 ----
 ====
 
+[IMPORTANT]
+====
+ConfigMap volumes mounted with `subPath` are never updated. A pod using `subPath` must be restarted to see a new value.
+====
+
 Despite this automatic sync, it’s still up to your application to watch for changes and reload them — OpenShift won’t restart the pod automatically.
 
 [NOTE]
@@ -209,7 +214,7 @@ While Persistent Volumes are often associated with stateful apps (like databases
 
 [NOTE]
 ====
-A single ConfigMap has a maximum size of **1 MiB**. If your configuration files are larger than that, or if you need to include binary data, Persistent Volumes are often a better fit.
+A single ConfigMap has a maximum size of **1 MiB**. ConfigMaps can hold small binary files in their `binaryData` field, but if your configuration files are larger than that limit, Persistent Volumes are often a better fit.
 ====
 
 Unlike ConfigMaps and Secrets, Persistent Volumes are not managed as Kubernetes-native objects by developers — they require additional coordination with the cluster admin or storage provider.
@@ -234,7 +239,12 @@ spec:
       storage: 1Gi
 ----
 
-When this claim is created, OpenShift looks for a `StorageClass` that defines how to provision the volume. A built-in controller called the **CSI provisioner** talks to the underlying storage system — like AWS EBS, Ceph, or a local storage driver — and creates a volume that satisfies the request.
+When this claim is created, OpenShift looks for a `StorageClass` that defines how to provision the volume (this example does not set `storageClassName`, so the cluster's default `StorageClass` is used). The **CSI driver** for that `StorageClass` talks to the underlying storage system — like AWS EBS, Ceph, or a local storage driver — and creates a volume that satisfies the request.
+
+[NOTE]
+====
+Many storage classes use the `WaitForFirstConsumer` binding mode. With these, the PVC stays `Pending` until a pod that uses it is scheduled. This is expected.
+====
 
 A `StorageClass` acts like a blueprint for dynamic volume provisioning. It tells OpenShift:
 
