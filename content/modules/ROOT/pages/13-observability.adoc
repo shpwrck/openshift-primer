@@ -321,9 +321,15 @@ spec:
   storage:
     traces:
       backend: memory
+  multitenancy:
+    enabled: true
+    mode: openshift
+    authentication:
+      - tenantName: dev
+        tenantId: "1610b0c3-c509-4592-a256-a1871353dbfa"
 ----
 
-This creates a minimal, in-cluster Tempo setup suitable for development and testing. Traces are kept in memory, so they are lost when the pod restarts.
+This creates a minimal, in-cluster Tempo setup suitable for development and testing. Traces are kept in memory, so they are lost when the pod restarts. Multi-tenancy in `openshift` mode puts an authenticating gateway in front of Tempo; the operator warns that instances without it are not supported on OpenShift.
 
 === Instrumenting Applications
 
