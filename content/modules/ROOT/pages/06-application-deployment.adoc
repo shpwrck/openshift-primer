@@ -198,11 +198,12 @@ The process for taking what we have and packaging it with helm is more involved 
 .Basic Helm Steps
 [%collapsible]
 ====
-.Remove the resources from the previous "new-app" command
+.Create a new project for the chart
 [source,sh,role=execute]
 ----
-# Helm cannot install resources that already exist and are not managed by Helm
-oc delete all -l app=test-cart
+# In a new project, "new-app" renders every resource the chart needs (including the
+# ImageStream for the base image), and none of them already exist outside of Helm
+oc new-project cart-helm
 ----
 
 .Initialize a helm chart

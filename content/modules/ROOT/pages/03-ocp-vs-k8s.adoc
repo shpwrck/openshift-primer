@@ -194,6 +194,11 @@ oc adm policy add-scc-to-user "SCC" -z "SERVICE_ACCOUNT"
 
 * Or the level of enforcement at the namespace level must be reduced
 
+[NOTE]
+====
+By default, OpenShift only enforces the `privileged` Pod Security Standard cluster-wide, and labels each namespace to `warn` and `audit` at the `restricted` level. Pod security admission violations therefore usually show up as warnings, while SCCs are what reject pods. Lowering the namespace level only matters when a namespace has been labeled with a stricter `enforce` level.
+====
+
 [source,yaml,role=execute]
 ----
 apiVersion: v1

@@ -34,7 +34,7 @@ Or you can download with using well defined URL endpoints:
 [source,sh,role=execute]
 ----
 # ARCHITECTURE: amd64, arm64, ppc64le, or s390x
-# OPERATING_SYSTEM: linux (the mac and windows downloads are oc.zip instead of oc.tar)
+# OPERATING_SYSTEM: linux, mac (amd64 and arm64 only), or windows (amd64 only)
 curl -L https://downloads-openshift-console.apps."CLUSTER_NAME"."BASE_DOMAIN"/"ARCHITECTURE"/"OPERATING_SYSTEM"/oc.tar | tar -xvf -
 ----
 
