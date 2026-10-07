@@ -230,6 +230,15 @@ First, ensure your app exposes the metric in Prometheus format, e.g.:
 http_requests_total{route="/api"} 12452
 ----
 
+If you don't have such an application yet, you can deploy the https://github.com/rhobs/prometheus-example-app[Prometheus example app], which exposes `http_requests_total`, together with a `PodMonitor` that tells Prometheus to scrape it:
+
+[source,yaml,role=execute]
+----
+include::example$prometheus-example-app.yaml[]
+----
+
+Prometheus labels metrics scraped through a `PodMonitor` with `job="NAMESPACE/PODMONITOR_NAME"`, which is the `job` label the query below selects.
+
 Next, create the service account that KEDA will use, a token secret for it, and permission to query metrics in the namespace:
 
 [source,sh,role=execute]
